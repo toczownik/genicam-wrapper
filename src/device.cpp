@@ -1,8 +1,9 @@
 #include <iostream>
-#include <sstream>
 #include <fstream>
 #include <GenApi/NodeMapRef.h>
 #include "device.h"
+
+#define BUFFER_SIZE 1024
 
 void Device::open() {
     GenTL::GC_ERROR status = genTL->IFOpenDevice(IF, id, GenTL::DEVICE_ACCESS_CONTROL, &DEV);
@@ -117,6 +118,36 @@ std::vector<Stream *> Device::getStreams() {
     return streams;
 }
 
-const char* Device::getId() {
-    return id;
+std::string Device::getId() {
+    return getInfo(GenTL::DEVICE_INFO_ID);
+}
+
+std::string Device::getInfo(GenTL::DEVICE_INFO_CMD info) {
+    GenTL::GC_ERROR status;
+    GenTL::INFO_DATATYPE type;
+    size_t bufferSize = sizeof(char)*BUFFER_SIZE;
+    char* retrieved = new char[1024];
+    status = genTL->DevGetInfo(TL, info, &type, retrieved, &bufferSize);
+    std::string value;
+    if (status == GenTL::GC_ERR_SUCCESS) {
+        value = retrieved;
+    } else {
+        value = "Couldn't retrieve info from device";
+    }
+    return value;
+}
+
+std::string Device::getInfos(bool displayFull) {
+    auto infos = new std::vector<GenTL::DEVICE_INFO_CMD>;
+    if (displayFull) {
+        infos->insert(infos->end(), {GenTL::DEVICE_INFO_SERIAL_NUMBER, GenTL::DEVICE_INFO_VERSION});
+    } else {
+        infos->push_back(GenTL::DEVICE_INFO_SERIAL_NUMBER);
+    }
+    std::string values;
+    for (GenTL::DEVICE_INFO_CMD info : *infos) {
+        values.append(getInfo(info));
+        values.append(" | ");
+    }
+    return values;
 }

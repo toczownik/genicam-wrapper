@@ -15,7 +15,9 @@ public:
     void getPort(int cameraXMLIndex);
     char* getName();
     std::vector<Stream*> getStreams();
-    const char* getId();
+    std::string getId();
+    std::string getInfo(GenTL::DEVICE_INFO_CMD info);
+    std::string getInfos(bool displayFull);
 
 private:
     const char *id;

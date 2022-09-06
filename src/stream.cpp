@@ -1,8 +1,11 @@
 #include <iostream>
+#include <utility>
 #include "stream.h"
 
+#define BUFFER_SIZE 1024
+
 Stream::Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::IF_HANDLE deviceHandle, GenTL::TL_HANDLE systemHandle) :
-id(streamId), genTL(genTLPtr), DEV(deviceHandle), TL(systemHandle) {
+id(streamId), genTL(std::move(genTLPtr)), DEV(deviceHandle), TL(systemHandle) {
     GenTL::STREAM_INFO_CMD infoCmd = GenTL::STREAM_INFO_DEFINES_PAYLOADSIZE;
     definesPayloadSize = false;
     size_t bufferSize = sizeof(definesPayloadSize);
@@ -51,13 +54,43 @@ std::vector<Buffer *> Stream::getBuffers() {
     return buffers;
 }
 
-void Stream::init() {
+void Stream::open() {
     GenTL::GC_ERROR status = genTL->DevOpenDataStream(DEV, id, &DS);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't open data stream" << std::endl;
     }
 }
 
-const char* Stream::getId() {
-    return id;
+std::string Stream::getId() {
+    return getInfo(GenTL::STREAM_INFO_ID);
+}
+
+std::string Stream::getInfo(GenTL::STREAM_INFO_CMD info) {
+    GenTL::GC_ERROR status;
+    GenTL::INFO_DATATYPE type;
+    size_t bufferSize = sizeof(char)*BUFFER_SIZE;
+    char* retrieved = new char[1024];
+    status = genTL->DSGetInfo(TL, info, &type, retrieved, &bufferSize);
+    std::string value;
+    if (status == GenTL::GC_ERR_SUCCESS) {
+        value = retrieved;
+    } else {
+        value = "Couldn't retrieve info from stream";
+    }
+    return value;
+}
+
+std::string Stream::getInfos(bool displayFull) {
+    auto infos = new std::vector<GenTL::STREAM_INFO_CMD>;
+    if (displayFull) {
+        infos->insert(infos->end(), {GenTL::STREAM_INFO_PAYLOAD_SIZE, GenTL::STREAM_INFO_IS_GRABBING, GenTL::STREAM_INFO_BUF_ANNOUNCE_MIN});
+    } else {
+        infos->push_back(GenTL::STREAM_INFO_PAYLOAD_SIZE);
+    }
+    std::string values;
+    for (GenTL::STREAM_INFO_CMD info : *infos) {
+        values.append(getInfo(info));
+        values.append(" | ");
+    }
+    return values;
 }

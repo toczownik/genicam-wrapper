@@ -11,12 +11,13 @@ class Interface {
 public:
     Interface(const char* interfaceId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::TL_HANDLE systemHandle) :
     id(interfaceId), genTL(std::move(genTLPtr)), TL(systemHandle) {};
-    const char* getId();
+    std::string getId();
     const char* getXMLPath(int frameGrabberIndex);
     void open();
     std::vector<Device *> getDevices(int updateTimeout);
     bool isOpened();
-    std::string getInfo(bool displayFull);
+    std::string getInfo(GenTL::INTERFACE_INFO_CMD info);
+    std::string getInfos(bool displayFull);
 
 private:
     const char* id;

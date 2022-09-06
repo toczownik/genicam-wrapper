@@ -1,8 +1,10 @@
 #include <iostream>
 #include "interface.h"
 
-const char* Interface::getId() {
-    return id;
+#define BUFFER_SIZE 1024
+
+std::string Interface::getId() {
+    return getInfo(GenTL::INTERFACE_INFO_ID);
 }
 
 const char* Interface::getXMLPath(int frameGrabberIndex) {
@@ -71,11 +73,22 @@ std::vector<Device *> Interface::getDevices(const int updateTimeout = 100) {
     return devices;
 }
 
-std::string Interface::getInfo(bool displayFull = false) {
+std::string Interface::getInfo(GenTL::INTERFACE_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
-    size_t bufferSize = sizeof(char)*1024;
-    char* value;
+    size_t bufferSize = sizeof(char)*BUFFER_SIZE;
+    char* retrieved = new char[1024];
+    status = genTL->IFGetInfo(TL, info, &type, retrieved, &bufferSize);
+    std::string value;
+    if (status == GenTL::GC_ERR_SUCCESS) {
+        value = retrieved;
+    } else {
+        value = "Couldn't retrieve info from interface";
+    }
+    return value;
+}
+
+std::string Interface::getInfos(bool displayFull = false) {
     auto infos = new std::vector<GenTL::INTERFACE_INFO_CMD>;
     if (displayFull) {
         infos->insert(infos->end(), {GenTL::INTERFACE_INFO_ID, GenTL::INTERFACE_INFO_DISPLAYNAME, GenTL::INTERFACE_INFO_TLTYPE});
@@ -84,12 +97,8 @@ std::string Interface::getInfo(bool displayFull = false) {
     }
     std::string values;
     for (GenTL::INTERFACE_INFO_CMD info : *infos) {
-        value = new char[bufferSize];
-        status = genTL->IFGetInfo(IF, info, &type, value, &bufferSize);
-        if (status == GenTL::GC_ERR_SUCCESS) {
-            values.append(value);
-            values.append(" | ");
-        }
+        values.append(getInfo(info));
+        values.append(" | ");
     }
     return values;
 }
