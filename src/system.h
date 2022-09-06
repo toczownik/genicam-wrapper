@@ -13,7 +13,7 @@ public:
     // przekazac gentl jako argument z domyślna wartością
     std::vector<Interface*> getInterfaces(int updateTimeout = 100);
     std::string getInfo(bool displayFull);
-    GenTL::GC_ERROR openGenTL();
+    GenTL::GC_ERROR open();
 
 private:
 

@@ -13,10 +13,10 @@ System::System(const std::string& filename) {
     }
 }
 
-std::string System::getInfo(bool displayFull) {
+std::string System::getInfo(bool displayFull = false) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
-    size_t bufferSize;
+    size_t bufferSize = sizeof(char)*1024;
     char* value;
     auto infos = new std::vector<GenTL::TL_INFO_CMD>;
     if (displayFull) {
@@ -26,7 +26,9 @@ std::string System::getInfo(bool displayFull) {
     }
     std::string values;
     for (GenTL::TL_INFO_CMD info : *infos) {
-        status = genTL->TLGetInfo(TL, info, &type, nullptr, &bufferSize);
+        value = new char[bufferSize];
+        status = genTL->TLGetInfo(TL, info, &type, value, &bufferSize);
+        /*std::cout << value << std::endl;
         if (status == GenTL::GC_ERR_SUCCESS) {
             value = new char [bufferSize];
             status = genTL->TLGetInfo(TL, info, &type, value, &bufferSize);
@@ -34,17 +36,20 @@ std::string System::getInfo(bool displayFull) {
                 values.append(value);
                 values.append(" | ");
             }
+        }*/
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            values.append(value);
+            values.append(" | ");
         }
     }
     return values;
 }
 
-GenTL::GC_ERROR System::openGenTL() {
+GenTL::GC_ERROR System::open() {
     return genTL->TLOpen(&TL);
 }
 
 std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
-    openGenTL();
     GenTL::GC_ERROR status = genTL->TLUpdateInterfaceList(TL, nullptr, updateTimeout);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " " << std::endl;

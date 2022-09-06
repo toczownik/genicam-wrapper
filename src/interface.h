@@ -16,6 +16,7 @@ public:
     void open();
     std::vector<Device *> getDevices(int updateTimeout);
     bool isOpened();
+    std::string getInfo(bool displayFull);
 
 private:
     const char* id;
