@@ -1,33 +1,49 @@
 #include "system.h"
 #include <iostream>
-
-#define BUFFER_SIZE 1024
+#include <utility>
 
 System::System(const std::string& filename) {
     std::vector<std::string> genTLNames = getAvailableGenTLs(filename.c_str());
     std::string genTLString = genTLNames[0];
     genTL = std::make_shared<const GenTLWrapper>(genTLString);
-    std::cout << std::endl << std::endl<< "Opened genTL: " << genTLString << std::endl;
     GenTL::GC_ERROR status = genTL->GCInitLib();
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't initialize library" << std::endl;
         genTL.reset();
     }
+    genTL->TLOpen(&TL);
 }
 
-std::string System::getInfo(GenTL::TL_INFO_CMD info) {
+System::System(std::shared_ptr<const GenTLWrapper> genTlWrapper) {
+    genTL = std::move(genTlWrapper);
+    GenTL::GC_ERROR status = genTL->GCInitLib();
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        std::cout << "Error " << status << " Can't initialize library" << std::endl;
+        genTL.reset();
+    }
+    genTL->TLOpen(&TL);
+}
+
+int System::getInfo(std::string* returnValue, GenTL::TL_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
-    size_t bufferSize = sizeof(char)*BUFFER_SIZE;
-    char* retrieved = new char[1024];
-    status = genTL->TLGetInfo(TL, info, &type, retrieved, &bufferSize);
-    std::string value;
+    size_t bufferSize;
+    int ret;
+    status = genTL->TLGetInfo(TL, info, &type, nullptr, &bufferSize);
     if (status == GenTL::GC_ERR_SUCCESS) {
-        value = retrieved;
+        char *retrieved = new char[bufferSize];
+        status = genTL->TLGetInfo(TL, info, &type, retrieved, &bufferSize);
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            *returnValue = retrieved;
+            ret = 0;
+        } else {
+            ret = -1;
+        }
+        delete[] retrieved;
     } else {
-        value = "Couldn't retrieve info from interface";
+        ret = -2;
     }
-    return value;
+    return ret;
 }
 
 std::string System::getInfos(bool displayFull = false) {
@@ -39,14 +55,17 @@ std::string System::getInfos(bool displayFull = false) {
     }
     std::string values;
     for (GenTL::TL_INFO_CMD info : *infos) {
-        values.append(getInfo(info));
+        std::string value;
+        if (getInfo(&value, info) == 0) {
+            values.append(value);
+        } else {
+            values.append("Couldn't retrieve info");
+        }
         values.append(" | ");
-    }
-    return values;
-}
 
-GenTL::GC_ERROR System::open() {
-    return genTL->TLOpen(&TL);
+    }
+    delete infos;
+    return values;
 }
 
 std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
@@ -77,10 +96,12 @@ std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
         if (status != GenTL::GC_ERR_SUCCESS) {
             std::cout << "Error " << status << " Can't get interface ID" << std::endl;
             closeAll();
-            delete[] id;
             return interfaces;
         }
-        interfaces.push_back(new Interface(id, genTL, TL));
+        GenICam_3_2::gcstring idString = id;
+        delete[] id;
+        interfaces.push_back(new Interface(idString, genTL, TL));
+
     }
     return interfaces;
 }

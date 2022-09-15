@@ -178,7 +178,7 @@ GenTLWrapper::GenTLWrapper(const std::string &filename)
     *reinterpret_cast<void**>(&GCWritePortStacked)=dlsym(lib, "GCWritePortStacked");
 
     *reinterpret_cast<void**>(&DSGetBufferChunkData)=dlsym(lib, "DSGetBufferChunkData");
-
+/*
     *reinterpret_cast<void**>(&IFGetParentTL)=dlsym(lib, "IFGetParentTL");
     *reinterpret_cast<void**>(&DevGetParentIF)=dlsym(lib, "DevGetParentIF");
     *reinterpret_cast<void**>(&DSGetParentDev)=dlsym(lib, "DSGetParentDev");
@@ -193,7 +193,7 @@ GenTLWrapper::GenTLWrapper(const std::string &filename)
     *reinterpret_cast<void**>(&DSGetFlowInfo)=dlsym(lib, "DSGetFlowInfo");
     *reinterpret_cast<void**>(&DSGetNumBufferSegments)=dlsym(lib, "DSGetNumBufferSegments");
     *reinterpret_cast<void**>(&DSGetBufferSegmentInfo)=dlsym(lib, "DSGetBufferSegmentInfo");
-
+*/
 
     const char *err=dlerror();
 

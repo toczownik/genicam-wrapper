@@ -10,15 +10,14 @@
 class System {
 public:
     explicit System(const std::string& filename);
-    // przekazac gentl jako argument z domyślna wartością
+    explicit System(std::shared_ptr<const GenTLWrapper> genTlWrapper);
     std::vector<Interface*> getInterfaces(int updateTimeout = 100);
     std::string getInfos(bool displayFull);
-    GenTL::GC_ERROR open();
-    std::string getInfo(GenTL::TL_INFO_CMD info);
+    int getInfo(std::string* returnString, GenTL::TL_INFO_CMD info);
 
 private:
 
     std::shared_ptr<const GenTLWrapper> genTL;
-    GenTL::TL_HANDLE TL = NULL;
+    GenTL::TL_HANDLE TL = nullptr;
     void closeAll();
 };

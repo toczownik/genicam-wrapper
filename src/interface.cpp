@@ -1,10 +1,26 @@
 #include <iostream>
+#include <utility>
 #include "interface.h"
+#include "cport.h"
 
-#define BUFFER_SIZE 1024
+Interface::Interface(const char *interfaceId, std::shared_ptr<const GenTLWrapper> genTLPtr,
+                     GenTL::TL_HANDLE systemHandle) {
+    TL = systemHandle;
+    genTL = std::move(genTLPtr);
+    GenTL::GC_ERROR status = genTL->TLOpenInterface(TL, interfaceId, &IF);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        std::string message = "Couldn't open interface" + std::string(interfaceId);
+        throw std::runtime_error(message);
+    }
+
+}
 
 std::string Interface::getId() {
-    return getInfo(GenTL::INTERFACE_INFO_ID);
+    std::string id;
+    if (getInfo(&id, GenTL::INTERFACE_INFO_ID) != 0) {
+        return "Couldn't retrieve id";
+    }
+    return id;
 }
 
 const char* Interface::getXMLPath(int frameGrabberIndex) {
@@ -20,24 +36,12 @@ const char* Interface::getXMLPath(int frameGrabberIndex) {
         status = genTL->GCGetPortURLInfo(frameGrabberPort, frameGrabberIndex, GenTL::URL_INFO_URL, &type,
                                                          path, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
-            delete[] path;
             path = nullptr;
         }
+        delete[] path;
+
     }
     return path;
-}
-
-void Interface::open() {
-    GenTL::GC_ERROR status = genTL->TLOpenInterface(TL, id, &IF);
-    if (status != GenTL::GC_ERR_SUCCESS) {
-        opened = false;
-    } else {
-        opened = true;
-    }
-}
-
-bool Interface::isOpened() {
-    return opened;
 }
 
 std::vector<Device *> Interface::getDevices(const int updateTimeout = 100) {
@@ -61,31 +65,37 @@ std::vector<Device *> Interface::getDevices(const int updateTimeout = 100) {
             std::cout << "Error " << status << " Can't get device ID" << std::endl;
             return devices;
         }
-        char* deviceId = new char[bufferSize];
-        status = genTL->IFGetDeviceID(TL, i, deviceId, &bufferSize);
+        char* deviceId = new char [bufferSize];
+        status = genTL->IFGetDeviceID(IF, i, deviceId, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
             std::cout << "Error " << status << " Can't get device ID" << std::endl;
-            delete[] deviceId;
             return devices;
         }
-        devices.push_back(new Device(deviceId, genTL, IF, TL));
+        GenICam_3_2::gcstring deviceString = deviceId;
+        devices.push_back(new Device(deviceString, genTL, IF, TL));
+        delete[] deviceId;
     }
     return devices;
 }
 
-std::string Interface::getInfo(GenTL::INTERFACE_INFO_CMD info) {
+int Interface::getInfo(std::string* returnString, GenTL::INTERFACE_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
-    size_t bufferSize = sizeof(char)*BUFFER_SIZE;
-    char* retrieved = new char[1024];
-    status = genTL->IFGetInfo(TL, info, &type, retrieved, &bufferSize);
-    std::string value;
+    size_t bufferSize;
+    status = genTL->IFGetInfo(IF, info, &type, nullptr, &bufferSize);
     if (status == GenTL::GC_ERR_SUCCESS) {
-        value = retrieved;
+        char *retrieved = new char[bufferSize];
+        status = genTL->IFGetInfo(IF, info, &type, retrieved, &bufferSize);
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            *returnString = retrieved;
+        } else {
+            return -1;
+        }
+        delete[] retrieved;
     } else {
-        value = "Couldn't retrieve info from interface";
+        return -2;
     }
-    return value;
+    return 0;
 }
 
 std::string Interface::getInfos(bool displayFull = false) {
@@ -96,9 +106,14 @@ std::string Interface::getInfos(bool displayFull = false) {
         infos->push_back(GenTL::INTERFACE_INFO_ID);
     }
     std::string values;
+    std::string value;
     for (GenTL::INTERFACE_INFO_CMD info : *infos) {
-        values.append(getInfo(info));
-        values.append(" | ");
+        if (getInfo(&value, info)) {
+            values.append(value);
+            values.append(" | ");
+        }
+
     }
+    delete infos;
     return values;
 }

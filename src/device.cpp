@@ -1,28 +1,24 @@
 #include <iostream>
 #include <fstream>
+#include <utility>
 #include <GenApi/NodeMapRef.h>
 #include "device.h"
+#include "cport.h"
 
-#define BUFFER_SIZE 1024
-
-void Device::open() {
-    GenTL::GC_ERROR status = genTL->IFOpenDevice(IF, id, GenTL::DEVICE_ACCESS_CONTROL, &DEV);
-    std::cout << "DEVICE::open " << DEV << std::endl;
+Device::Device(const char* deviceId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::IF_HANDLE interfaceHandle, GenTL::TL_HANDLE systemHandle) {
+    genTL = std::move(genTLPtr);
+    IF = interfaceHandle;
+    TL = systemHandle;
+    GenTL::GC_ERROR status = genTL->IFOpenDevice(IF, deviceId, GenTL::DEVICE_ACCESS_CONTROL, &DEV);
     if (status != GenTL::GC_ERR_SUCCESS) {
-        opened = false;
-    } else {
-        opened = true;
+        std::string message = "Couldn't open device" + std::string(deviceId);
+        throw std::runtime_error(message);
     }
-}
-
-bool Device::isOpened() {
-    return opened;
 }
 
 void Device::getPort(int cameraXMLIndex) {
     PORT_CAMERA = GENTL_INVALID_HANDLE;
     GenTL::GC_ERROR status = genTL->DevGetPort(DEV, &PORT_CAMERA);
-    std::cout << "PORT CAMERA " << PORT_CAMERA << std::endl;
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error" << status << " Can't get device mPortHandle" << std::endl;
         return;
@@ -38,17 +34,33 @@ void Device::getPort(int cameraXMLIndex) {
     status = genTL->GCGetPortURLInfo(PORT_CAMERA, cameraXMLIndex, GenTL::URL_INFO_URL, &type, camera_xml_location, &bufferSize);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't get information about XML location" << std::endl;
+        return;
     }
-    else {
-        std::string cameraXML = getXMLFromURL(camera_xml_location);
-        //std::cout << cameraXML.c_str() << std::endl;
-        nodeMap = std::make_shared<GenApi::CNodeMapRef>("CAMERA");
-        nodeMap->_LoadXMLFromString(cameraXML.c_str());
-    }
+    std::string cameraXML = getXMLFromURL(camera_xml_location);
+    nodeMap = std::make_shared<GenApi::CNodeMapRef>("CAMERA");
     delete[] camera_xml_location;
 
     bufferSize = 0;
 
+    char cameraXMLString[0xD0000];
+    std::shared_ptr<CPort> cameraCport = std::make_shared<CPort>(genTL, PORT_CAMERA);
+    cameraCport->Read(cameraXMLString, 0xb000, 0xc5339);
+
+    status = genTL->GCGetPortInfo(PORT_CAMERA, GenTL::PORT_INFO_PORTNAME, &type, nullptr, &bufferSize);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        std::cout << "Error " << status << " Can't get mPortHandle name" << std::endl;
+        return;
+    }
+    //  auto cameraPortName = std::unique_ptr<char[]>{ new char[bufferSize] };
+    char *cameraPortName = new char[bufferSize];
+    status = genTL->GCGetPortInfo(PORT_CAMERA, GenTL::PORT_INFO_PORTNAME, &type, cameraPortName, &bufferSize);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        std::cout << "Error " << status << " Can't get mPortHandle name" << std::endl;
+        return;
+    }
+
+    nodeMap->_Connect(cameraCport.get(), cameraPortName);
+    delete[] cameraPortName;
 
 }
 
@@ -67,21 +79,23 @@ std::string Device::getXMLFromURL(const char *url) {
     return xml;
 }
 
-char *Device::getName() {
-    size_t bufferSize = 1024;
+std::string Device::getName() {
+    size_t bufferSize;
     GenTL::INFO_DATATYPE type;
-    /*
+
     GenTL::GC_ERROR status = genTL->GCGetPortInfo(PORT_CAMERA, GenTL::PORT_INFO_PORTNAME, &type, nullptr, &bufferSize);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't get mPortHandle name" << std::endl;
-        return nullptr;
-    }*/
+        return "";
+    }
     char *cameraPortName = new char[bufferSize];
-    GenTL::GC_ERROR status = genTL->GCGetPortInfo(PORT_CAMERA, GenTL::PORT_INFO_PORTNAME, &type, cameraPortName, &bufferSize);
+    status = genTL->GCGetPortInfo(PORT_CAMERA, GenTL::PORT_INFO_PORTNAME, &type, cameraPortName, &bufferSize);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't get mPortHandle name" << std::endl;
     }
-    return cameraPortName;
+    std::string ret = cameraPortName;
+    delete[] cameraPortName;
+    return ret;
 }
 
 std::vector<Stream *> Device::getStreams() {
@@ -99,13 +113,11 @@ std::vector<Stream *> Device::getStreams() {
     size_t bufferSize;
     auto streams = std::vector<Stream*>();
     for (int i = 0; i < numStreams; ++i) {
-        /*
         status = genTL->DevGetDataStreamID(DEV, i, nullptr, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
             std::cout << "Error " << status << " Can't get data stream ID" << std::endl;
             return streams;
-        }*/
-        bufferSize = 1024;
+        }
         char *streamId = new char[bufferSize];
         status = genTL->DevGetDataStreamID(DEV, i, streamId, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
@@ -113,28 +125,39 @@ std::vector<Stream *> Device::getStreams() {
             delete[] streamId;
             return streams;
         }
-        streams.push_back(new Stream(streamId, genTL, DEV, TL));
+        GenICam_3_2::gcstring streamString = streamId;
+        delete[] streamId;
+        streams.push_back(new Stream(streamString, genTL, DEV, TL));
     }
     return streams;
 }
 
 std::string Device::getId() {
-    return getInfo(GenTL::DEVICE_INFO_ID);
+    std::string id;
+    if (getInfo(&id, GenTL::DEVICE_INFO_ID) != 0){
+        return "Couldn't retrieve id";
+    }
+    return id;
 }
 
-std::string Device::getInfo(GenTL::DEVICE_INFO_CMD info) {
+int Device::getInfo(std::string* returnString, GenTL::DEVICE_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
-    size_t bufferSize = sizeof(char)*BUFFER_SIZE;
-    char* retrieved = new char[1024];
-    status = genTL->DevGetInfo(TL, info, &type, retrieved, &bufferSize);
-    std::string value;
+    size_t bufferSize;
+    status = genTL->DevGetInfo(DEV, info, &type, nullptr, &bufferSize);
     if (status == GenTL::GC_ERR_SUCCESS) {
-        value = retrieved;
+        char *retrieved = new char[bufferSize];
+        status = genTL->DevGetInfo(DEV, info, &type, retrieved, &bufferSize);
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            *returnString = retrieved;
+        } else {
+            return -1;
+        }
+        delete[] retrieved;
     } else {
-        value = "Couldn't retrieve info from device";
+        return -2;
     }
-    return value;
+    return 0;
 }
 
 std::string Device::getInfos(bool displayFull) {
@@ -145,9 +168,13 @@ std::string Device::getInfos(bool displayFull) {
         infos->push_back(GenTL::DEVICE_INFO_SERIAL_NUMBER);
     }
     std::string values;
+    std::string value;
     for (GenTL::DEVICE_INFO_CMD info : *infos) {
-        values.append(getInfo(info));
-        values.append(" | ");
+        if (getInfo(&value, info)) {
+            values.append(value);
+            values.append(" | ");
+        }
     }
+    delete infos;
     return values;
 }

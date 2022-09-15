@@ -1,5 +1,5 @@
-set(SOURCE_FILES gentl_wrapper.cpp system.cpp interface.cpp device.cpp stream.cpp)
-set(HEADER_FILES gentl_wrapper.h system.h interface.h device.h genicam_wrapper.h stream.h buffer.h)
+set(SOURCE_FILES gentl_wrapper.cpp system.cpp interface.cpp device.cpp stream.cpp cport.cpp)
+set(HEADER_FILES gentl_wrapper.h system.h interface.h device.h genicam_wrapper.h stream.h buffer.h cport.h)
 
 set(LIBRARY_NAME genicam_wrapper)
 
