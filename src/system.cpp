@@ -79,7 +79,7 @@ std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
     status = genTL->TLGetNumInterfaces(TL, &numInterfaces);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't get number of interfaces" << std::endl;
-        closeAll();
+        return {};
     }
     auto interfaces = std::vector<Interface*>();
     size_t bufferSize;
@@ -88,14 +88,12 @@ std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
         status = genTL->TLGetInterfaceID(TL, i, nullptr, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
             std::cout << "Error " << status << " Can't get interface ID" << std::endl;
-            closeAll();
             return interfaces;
         }
         char* id = new char[bufferSize];
         status = genTL->TLGetInterfaceID(TL, i, id, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
             std::cout << "Error " << status << " Can't get interface ID" << std::endl;
-            closeAll();
             return interfaces;
         }
         GenICam_3_2::gcstring idString = id;
@@ -106,7 +104,7 @@ std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
     return interfaces;
 }
 
-void System::closeAll() {
+System::~System() {
     genTL->TLClose(TL);
     genTL->GCCloseLib();
     genTL.reset();

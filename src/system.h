@@ -14,10 +14,10 @@ public:
     std::vector<Interface*> getInterfaces(int updateTimeout = 100);
     std::string getInfos(bool displayFull);
     int getInfo(std::string* returnString, GenTL::TL_INFO_CMD info);
+    ~System();
 
 private:
 
     std::shared_ptr<const GenTLWrapper> genTL;
     GenTL::TL_HANDLE TL = nullptr;
-    void closeAll();
 };
