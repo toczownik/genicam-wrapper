@@ -163,9 +163,9 @@ int Device::getInfo(std::string* returnString, GenTL::DEVICE_INFO_CMD info) {
 std::string Device::getInfos(bool displayFull) {
     auto infos = new std::vector<GenTL::DEVICE_INFO_CMD>;
     if (displayFull) {
-        infos->insert(infos->end(), {GenTL::DEVICE_INFO_SERIAL_NUMBER, GenTL::DEVICE_INFO_VERSION});
+        infos->insert(infos->end(), {GenTL::DEVICE_INFO_ID, GenTL::DEVICE_INFO_DISPLAYNAME});
     } else {
-        infos->push_back(GenTL::DEVICE_INFO_SERIAL_NUMBER);
+        infos->push_back(GenTL::DEVICE_INFO_ID);
     }
     std::string values;
     std::string value;
