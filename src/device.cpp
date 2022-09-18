@@ -98,7 +98,7 @@ std::string Device::getName() {
     return ret;
 }
 
-std::vector<Stream *> Device::getStreams() {
+std::vector<Stream> Device::getStreams() {
     uint32_t numStreams;
     std::cout << DEV << std::endl;
     GenTL::GC_ERROR status = genTL->DevGetNumDataStreams(DEV, &numStreams);
@@ -111,7 +111,7 @@ std::vector<Stream *> Device::getStreams() {
         return {};
     }
     size_t bufferSize;
-    auto streams = std::vector<Stream*>();
+    auto streams = std::vector<Stream>();
     for (int i = 0; i < numStreams; ++i) {
         status = genTL->DevGetDataStreamID(DEV, i, nullptr, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
@@ -125,9 +125,8 @@ std::vector<Stream *> Device::getStreams() {
             delete[] streamId;
             return streams;
         }
-        GenICam_3_2::gcstring streamString = streamId;
+        streams.emplace_back(streamId, genTL, DEV, TL);
         delete[] streamId;
-        streams.push_back(new Stream(streamString, genTL, DEV, TL));
     }
     return streams;
 }

@@ -4,10 +4,11 @@
 
 Stream::Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::IF_HANDLE deviceHandle, GenTL::TL_HANDLE systemHandle) :
 DEV(deviceHandle), TL(systemHandle) {
-    GenTL::STREAM_INFO_CMD infoCmd = GenTL::STREAM_INFO_DEFINES_PAYLOADSIZE;
+    genTL = std::move(genTLPtr);
+    /*GenTL::STREAM_INFO_CMD infoCmd = GenTL::STREAM_INFO_DEFINES_PAYLOADSIZE;
     definesPayloadSize = false;
     size_t bufferSize = sizeof(definesPayloadSize);
-    genTL = std::move(genTLPtr);
+
     GenTL::INFO_DATATYPE type;
     GenTL::GC_ERROR status = genTL->DSGetInfo(DS, infoCmd, &type, &definesPayloadSize, &bufferSize);
     if (status != GenTL::GC_ERR_SUCCESS) {
@@ -32,8 +33,8 @@ DEV(deviceHandle), TL(systemHandle) {
     status = genTL->DSGetInfo(DS, infoCmd, &type, &minBufferNumber, &bufferSize);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't get information about expected buffer size" << std::endl;
-    }
-    status = genTL->DevOpenDataStream(DEV, streamId, &DS);
+    }*/
+    GenTL::GC_ERROR status = genTL->DevOpenDataStream(DEV, streamId, &DS);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::string message = "Couldn't open stream" + std::string(streamId);
         throw std::runtime_error(message);

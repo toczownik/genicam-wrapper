@@ -11,7 +11,7 @@ public:
     Device(const char* deviceId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::IF_HANDLE interfaceHandle, GenTL::TL_HANDLE systemHandle);
     void getPort(int cameraXMLIndex);
     std::string getName();
-    std::vector<Stream*> getStreams();
+    std::vector<Stream> getStreams();
     std::string getId();
     int getInfo(std::string* returnString, GenTL::DEVICE_INFO_CMD info);
     std::string getInfos(bool displayFull);

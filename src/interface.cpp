@@ -44,7 +44,7 @@ const char* Interface::getXMLPath(int frameGrabberIndex) {
     return path;
 }
 
-std::vector<Device *> Interface::getDevices(const int updateTimeout = 100) {
+std::vector<Device> Interface::getDevices(const int updateTimeout = 100) {
     GenTL::GC_ERROR status = genTL->IFUpdateDeviceList(IF, nullptr, updateTimeout);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " " << std::endl;
@@ -56,7 +56,7 @@ std::vector<Device *> Interface::getDevices(const int updateTimeout = 100) {
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't get number of devices" << std::endl;
     }
-    auto devices = std::vector<Device *>();
+    auto devices = std::vector<Device>();
     size_t bufferSize;
     for (int i = 0; i < numDevices; ++i) {
         bufferSize = 0;
@@ -71,8 +71,7 @@ std::vector<Device *> Interface::getDevices(const int updateTimeout = 100) {
             std::cout << "Error " << status << " Can't get device ID" << std::endl;
             return devices;
         }
-        GenICam_3_2::gcstring deviceString = deviceId;
-        devices.push_back(new Device(deviceString, genTL, IF, TL));
+        devices.emplace_back(deviceId, genTL, IF, TL);
         delete[] deviceId;
     }
     return devices;

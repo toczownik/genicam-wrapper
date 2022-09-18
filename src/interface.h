@@ -12,7 +12,7 @@ public:
     Interface(const char* interfaceId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::TL_HANDLE systemHandle);
     std::string getId();
     const char* getXMLPath(int frameGrabberIndex);
-    std::vector<Device *> getDevices(int updateTimeout);
+    std::vector<Device> getDevices(int updateTimeout);
     int getInfo(std::string* returnString, GenTL::INTERFACE_INFO_CMD info);
     std::string getInfos(bool displayFull);
 

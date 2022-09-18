@@ -68,7 +68,7 @@ std::string System::getInfos(bool displayFull = false) {
     return values;
 }
 
-std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
+std::vector<Interface> System::getInterfaces(const int updateTimeout) {
     GenTL::GC_ERROR status = genTL->TLUpdateInterfaceList(TL, nullptr, updateTimeout);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " " << std::endl;
@@ -81,7 +81,7 @@ std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
         std::cout << "Error " << status << " Can't get number of interfaces" << std::endl;
         return {};
     }
-    auto interfaces = std::vector<Interface*>();
+    auto interfaces = std::vector<Interface>();
     size_t bufferSize;
     for (int i = 0; i < numInterfaces; ++i) {
         bufferSize = 0;
@@ -90,15 +90,14 @@ std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
             std::cout << "Error " << status << " Can't get interface ID" << std::endl;
             return interfaces;
         }
-        char* id = new char[bufferSize];
-        status = genTL->TLGetInterfaceID(TL, i, id, &bufferSize);
+        char* interfaceId = new char[bufferSize];
+        status = genTL->TLGetInterfaceID(TL, i, interfaceId, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
             std::cout << "Error " << status << " Can't get interface ID" << std::endl;
             return interfaces;
         }
-        GenICam_3_2::gcstring idString = id;
-        delete[] id;
-        interfaces.push_back(new Interface(idString, genTL, TL));
+        interfaces.emplace_back(interfaceId, genTL, TL);
+        delete[] interfaceId;
 
     }
     return interfaces;
