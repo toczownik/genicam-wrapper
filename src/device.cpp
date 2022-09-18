@@ -170,7 +170,7 @@ std::string Device::getInfos(bool displayFull) {
     std::string values;
     std::string value;
     for (GenTL::DEVICE_INFO_CMD info : *infos) {
-        if (getInfo(&value, info)) {
+        if (getInfo(&value, info) == 0) {
             values.append(value);
             values.append(" | ");
         }

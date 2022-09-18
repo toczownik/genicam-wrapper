@@ -103,9 +103,10 @@ std::vector<Interface*> System::getInterfaces(const int updateTimeout) {
     }
     return interfaces;
 }
-
+/*
 System::~System() {
-    genTL->TLClose(TL);
+    genTL->TLClose(TL); // TODO segfault
     genTL->GCCloseLib();
     genTL.reset();
 }
+*/

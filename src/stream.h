@@ -8,13 +8,11 @@ class Stream {
 public:
     Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::IF_HANDLE deviceHandle, GenTL::TL_HANDLE systemHandle);
     std::vector<Buffer *> getBuffers();
-    void open();
     std::string getId();
-    std::string getInfo(GenTL::STREAM_INFO_CMD info);
+    int getInfo(std::string* returnString, GenTL::STREAM_INFO_CMD info);
     std::string getInfos(bool displayFull);
 
 private:
-    const char *id;
     bool definesPayloadSize;
     size_t expectedBufferSize;
     size_t minBufferNumber;

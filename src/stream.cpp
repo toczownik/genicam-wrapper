@@ -2,13 +2,12 @@
 #include <utility>
 #include "stream.h"
 
-#define BUFFER_SIZE 1024
-
 Stream::Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::IF_HANDLE deviceHandle, GenTL::TL_HANDLE systemHandle) :
-id(streamId), genTL(std::move(genTLPtr)), DEV(deviceHandle), TL(systemHandle) {
+DEV(deviceHandle), TL(systemHandle) {
     GenTL::STREAM_INFO_CMD infoCmd = GenTL::STREAM_INFO_DEFINES_PAYLOADSIZE;
     definesPayloadSize = false;
     size_t bufferSize = sizeof(definesPayloadSize);
+    genTL = std::move(genTLPtr);
     GenTL::INFO_DATATYPE type;
     GenTL::GC_ERROR status = genTL->DSGetInfo(DS, infoCmd, &type, &definesPayloadSize, &bufferSize);
     if (status != GenTL::GC_ERR_SUCCESS) {
@@ -34,6 +33,11 @@ id(streamId), genTL(std::move(genTLPtr)), DEV(deviceHandle), TL(systemHandle) {
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " Can't get information about expected buffer size" << std::endl;
     }
+    status = genTL->DevOpenDataStream(DEV, streamId, &DS);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        std::string message = "Couldn't open stream" + std::string(streamId);
+        throw std::runtime_error(message);
+    }
 }
 
 std::vector<Buffer *> Stream::getBuffers() {
@@ -54,30 +58,32 @@ std::vector<Buffer *> Stream::getBuffers() {
     return buffers;
 }
 
-void Stream::open() {
-    GenTL::GC_ERROR status = genTL->DevOpenDataStream(DEV, id, &DS);
-    if (status != GenTL::GC_ERR_SUCCESS) {
-        std::cout << "Error " << status << " Can't open data stream" << std::endl;
-    }
-}
-
 std::string Stream::getId() {
-    return getInfo(GenTL::STREAM_INFO_ID);
+    std::string id;
+    if (getInfo(&id, GenTL::STREAM_INFO_ID) != 0){
+        return "Couldn't retrieve id";
+    }
+    return id;
 }
 
-std::string Stream::getInfo(GenTL::STREAM_INFO_CMD info) {
+int Stream::getInfo(std::string* returnString, GenTL::STREAM_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
-    size_t bufferSize = sizeof(char)*BUFFER_SIZE;
-    char* retrieved = new char[1024];
-    status = genTL->DSGetInfo(TL, info, &type, retrieved, &bufferSize);
-    std::string value;
+    size_t bufferSize;
+    status = genTL->DSGetInfo(TL, info, &type, nullptr, &bufferSize);
     if (status == GenTL::GC_ERR_SUCCESS) {
-        value = retrieved;
+        char* retrieved = new char[bufferSize];
+        status = genTL->DSGetInfo(DEV, info, &type, retrieved, &bufferSize);
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            *returnString = retrieved;
+        } else {
+            return -1;
+        }
+        delete[] retrieved;
     } else {
-        value = "Couldn't retrieve info from stream";
+        return -2;
     }
-    return value;
+    return 0;
 }
 
 std::string Stream::getInfos(bool displayFull) {
@@ -88,9 +94,13 @@ std::string Stream::getInfos(bool displayFull) {
         infos->push_back(GenTL::STREAM_INFO_PAYLOAD_SIZE);
     }
     std::string values;
+    std::string value;
     for (GenTL::STREAM_INFO_CMD info : *infos) {
-        values.append(getInfo(info));
-        values.append(" | ");
+        if (getInfo(&value, info) == 0) {
+            values.append(value);
+            values.append(" | ");
+        }
     }
+    delete infos;
     return values;
 }

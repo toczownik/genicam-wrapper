@@ -14,7 +14,7 @@ public:
     std::vector<Interface*> getInterfaces(int updateTimeout = 100);
     std::string getInfos(bool displayFull);
     int getInfo(std::string* returnString, GenTL::TL_INFO_CMD info);
-    ~System();
+    //~System();
 
 private:
 

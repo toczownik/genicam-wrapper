@@ -108,7 +108,7 @@ std::string Interface::getInfos(bool displayFull = false) {
     std::string values;
     std::string value;
     for (GenTL::INTERFACE_INFO_CMD info : *infos) {
-        if (getInfo(&value, info)) {
+        if (getInfo(&value, info) == 0) {
             values.append(value);
             values.append(" | ");
         }
