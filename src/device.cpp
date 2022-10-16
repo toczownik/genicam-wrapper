@@ -125,7 +125,7 @@ std::vector<Stream> Device::getStreams() {
             delete[] streamId;
             return streams;
         }
-        streams.emplace_back(streamId, genTL, DEV, TL);
+        streams.emplace_back(streamId, genTL, DEV);
         delete[] streamId;
     }
     return streams;
@@ -133,13 +133,13 @@ std::vector<Stream> Device::getStreams() {
 
 std::string Device::getId() {
     std::string id;
-    if (getInfo(&id, GenTL::DEVICE_INFO_ID) != 0){
+    if (getInfo(GenTL::DEVICE_INFO_ID, &id) != 0){
         return "Couldn't retrieve id";
     }
     return id;
 }
 
-int Device::getInfo(std::string* returnString, GenTL::DEVICE_INFO_CMD info) {
+int Device::getInfo(GenTL::DEVICE_INFO_CMD info, std::string* value) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -148,7 +148,7 @@ int Device::getInfo(std::string* returnString, GenTL::DEVICE_INFO_CMD info) {
         char *retrieved = new char[bufferSize];
         status = genTL->DevGetInfo(DEV, info, &type, retrieved, &bufferSize);
         if (status == GenTL::GC_ERR_SUCCESS) {
-            *returnString = retrieved;
+            *value = retrieved;
         } else {
             return -1;
         }
@@ -169,11 +169,15 @@ std::string Device::getInfos(bool displayFull) {
     std::string values;
     std::string value;
     for (GenTL::DEVICE_INFO_CMD info : *infos) {
-        if (getInfo(&value, info) == 0) {
+        if (getInfo(info, &value) == 0) {
             values.append(value);
             values.append(" | ");
         }
     }
     delete infos;
     return values;
+}
+
+Device::~Device() {
+    genTL->DevClose(DEV);
 }

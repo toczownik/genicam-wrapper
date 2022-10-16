@@ -10,4 +10,5 @@ target_link_libraries(${LIBRARY_NAME}
         ${GENAPI_LIBRARY}
         ${GCBASE_LIBRARY})
 
+target_include_directories(${LIBRARY_NAME} PRIVATE  ${GENICAM_INCLUDE_DIR})
 

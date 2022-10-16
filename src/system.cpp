@@ -1,17 +1,22 @@
 #include "system.h"
 #include <iostream>
 #include <utility>
+#include <filesystem>
 
-System::System(const std::string& filename) {
-    std::vector<std::string> genTLNames = getAvailableGenTLs(filename.c_str());
-    std::string genTLString = genTLNames[0];
-    genTL = std::make_shared<const GenTLWrapper>(genTLString);
-    GenTL::GC_ERROR status = genTL->GCInitLib();
-    if (status != GenTL::GC_ERR_SUCCESS) {
-        std::cout << "Error " << status << " Can't initialize library" << std::endl;
-        genTL.reset();
+System::System(const std::string filepath) {
+    std::cout << filepath << std::endl;
+    std::filesystem::path file {filepath};
+    if (std::filesystem::exists(file)) {
+        genTL = std::make_shared<const GenTLWrapper>(filepath);
+        GenTL::GC_ERROR status = genTL->GCInitLib();
+        if (status != GenTL::GC_ERR_SUCCESS) {
+            std::cout << "Error " << status << " Can't initialize library" << std::endl;
+            genTL.reset();
+        }
+        genTL->TLOpen(&TL);
+    } else {
+        throw std::runtime_error("CTI file not found");
     }
-    genTL->TLOpen(&TL);
 }
 
 System::System(std::shared_ptr<const GenTLWrapper> genTlWrapper) {
@@ -24,7 +29,7 @@ System::System(std::shared_ptr<const GenTLWrapper> genTlWrapper) {
     genTL->TLOpen(&TL);
 }
 
-int System::getInfo(std::string* returnValue, GenTL::TL_INFO_CMD info) {
+int System::getInfo(GenTL::TL_INFO_CMD info, std::string* value) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -34,7 +39,7 @@ int System::getInfo(std::string* returnValue, GenTL::TL_INFO_CMD info) {
         char *retrieved = new char[bufferSize];
         status = genTL->TLGetInfo(TL, info, &type, retrieved, &bufferSize);
         if (status == GenTL::GC_ERR_SUCCESS) {
-            *returnValue = retrieved;
+            *value = retrieved;
             ret = 0;
         } else {
             ret = -1;
@@ -56,7 +61,7 @@ std::string System::getInfos(bool displayFull = false) {
     std::string values;
     for (GenTL::TL_INFO_CMD info : *infos) {
         std::string value;
-        if (getInfo(&value, info) == 0) {
+        if (getInfo(info, &value) == 0) {
             values.append(value);
         } else {
             values.append("Couldn't retrieve info");
@@ -102,10 +107,9 @@ std::vector<Interface> System::getInterfaces(const int updateTimeout) {
     }
     return interfaces;
 }
-/*
+
 System::~System() {
-    genTL->TLClose(TL); // TODO segfault
+    genTL->TLClose(TL);
     genTL->GCCloseLib();
     genTL.reset();
 }
-*/

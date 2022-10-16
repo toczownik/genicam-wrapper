@@ -17,7 +17,7 @@ Interface::Interface(const char *interfaceId, std::shared_ptr<const GenTLWrapper
 
 std::string Interface::getId() {
     std::string id;
-    if (getInfo(&id, GenTL::INTERFACE_INFO_ID) != 0) {
+    if (getInfo(GenTL::INTERFACE_INFO_ID, &id) != 0) {
         return "Couldn't retrieve id";
     }
     return id;
@@ -77,7 +77,7 @@ std::vector<Device> Interface::getDevices(const int updateTimeout = 100) {
     return devices;
 }
 
-int Interface::getInfo(std::string* returnString, GenTL::INTERFACE_INFO_CMD info) {
+int Interface::getInfo(GenTL::INTERFACE_INFO_CMD info, std::string* value) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -86,7 +86,7 @@ int Interface::getInfo(std::string* returnString, GenTL::INTERFACE_INFO_CMD info
         char *retrieved = new char[bufferSize];
         status = genTL->IFGetInfo(IF, info, &type, retrieved, &bufferSize);
         if (status == GenTL::GC_ERR_SUCCESS) {
-            *returnString = retrieved;
+            *value = retrieved;
         } else {
             return -1;
         }
@@ -107,7 +107,7 @@ std::string Interface::getInfos(bool displayFull = false) {
     std::string values;
     std::string value;
     for (GenTL::INTERFACE_INFO_CMD info : *infos) {
-        if (getInfo(&value, info) == 0) {
+        if (getInfo(info, &value) == 0) {
             values.append(value);
             values.append(" | ");
         }
@@ -115,4 +115,8 @@ std::string Interface::getInfos(bool displayFull = false) {
     }
     delete infos;
     return values;
+}
+
+Interface::~Interface() {
+    genTL->IFClose(IF);
 }

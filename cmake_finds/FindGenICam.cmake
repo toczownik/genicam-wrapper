@@ -6,44 +6,40 @@
 
 find_path(GENICAM_INCLUDE_DIR GenICam.h
         PATHS
-        "/usr/local/dmcs/GenICam/library/CPP/include"
+        "/usr/include/genicam/"
         )
 
-set(GENICAM_LIBRARY_DIR "/usr/local/dmcs/GenICam/bin/Linux64_x64" )
+set(GENICAM_LIBRARY_DIR "/usr/lib/x86_64-linux-gnu/genicam-mtca-ias" )
 
 find_library(WRAPMEMCPY_LIBRARY NAMES wrapmemcpy PATHS ${GENICAM_LIBRARY_DIR})
 
 find_library(CLALLSERIAL_LIBRARY
         NAMES
-        CLAllSerial_gcc48_v3_2
+        CLAllSerial_gcc48_v3_3
         PATHS
         ${GENICAM_LIBRARY_DIR}
         )
 
 find_library(CLPROTOCOL_LIBRARY
         NAMES
-        CLProtocol_gcc48_v3_2
+        CLProtocol_gcc48_v3_3
         PATHS
         ${GENICAM_LIBRARY_DIR}
         )
 
 find_library(GENAPI_LIBRARY
         NAMES
-        GenApi_gcc48_v3_2
+        GenApi_gcc48_v3_3
         PATHS
         ${GENICAM_LIBRARY_DIR}
         )
 
 find_library(GCBASE_LIBRARY
         NAMES
-        GCBase_gcc48_v3_2
+        GCBase_gcc48_v3_3
         PATHS
         ${GENICAM_LIBRARY_DIR}
         )
-
-
-#set(GENICAM_LIBRARIES ${GENAPI_LIBRARY} ${GCBASE_LIBRARY} ${LOG4CPP_LIBRARY} ${LOG_GCC_LIBRARY} ${MATHPARSER_LIBRARY})
-#set(GENICAM_INCLUDE_DIRS ${GENICAM_INCLUDE_DIR} )
 
 INCLUDE(FindPackageHandleStandardArgs)
 
