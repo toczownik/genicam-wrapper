@@ -4,4 +4,3 @@
 #include "interface.h"
 #include "device.h"
 #include "stream.h"
-

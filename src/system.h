@@ -14,7 +14,7 @@ public:
     std::vector<Interface> getInterfaces(int updateTimeout = 100);
     std::string getInfos(bool displayFull);
     template<typename T>
-    int getInfo(GenTL::STREAM_INFO_CMD info, T *value) {
+    int getInfo(GenTL::TL_INFO_CMD info, T *value) {
         GenTL::GC_ERROR status;
         GenTL::INFO_DATATYPE type;
         size_t bufferSize;
