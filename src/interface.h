@@ -17,7 +17,7 @@ public:
     std::vector<Device> getDevices(int updateTimeout = 100);
     Device getDevice(int deviceIndex, int updateTimeout = 100);
     template<typename T>
-    T getInfo(GenTL::INTERFACE_INFO_CMD info) {
+    T getInfoNumeric(GenTL::INTERFACE_INFO_CMD info) {
         GenTL::GC_ERROR status;
         GenTL::INFO_DATATYPE type;
         size_t bufferSize;
@@ -34,7 +34,7 @@ public:
         return value;
     }
     template<typename T>
-    T getFrameGrabberInfo(GenTL::PORT_INFO_CMD info) {
+    T getFrameGrabberInfoNumeric(GenTL::PORT_INFO_CMD info) {
         GenTL::GC_ERROR status;
         GenTL::INFO_DATATYPE type;
         size_t bufferSize;
@@ -50,8 +50,8 @@ public:
         }
         return value;
     }
-    std::string getFrameGrabberInfo(GenTL::PORT_INFO_CMD info);
-    std::string getInfo(GenTL::INTERFACE_INFO_CMD info);
+    std::string getFrameGrabberInfoString(GenTL::PORT_INFO_CMD info);
+    std::string getInfoString(GenTL::INTERFACE_INFO_CMD info);
     std::string getInfos(bool displayFull);
     std::shared_ptr<GenApi::CNodeMapRef> getFrameGrabberNodeMap(int XMLindex);
 

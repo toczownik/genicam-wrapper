@@ -27,7 +27,7 @@ std::shared_ptr<GenApi::CNodeMapRef> Device::getCameraNodeMap(const int XMLIndex
     std::string cameraURL = getXMLPath(XMLIndex);
     std::shared_ptr<GenApi::CNodeMapRef> frameGrabberNodeMap = std::make_shared<GenApi::CNodeMapRef>("CAMERA");
     loadXMLFromURL(cameraURL.c_str(), nullptr, frameGrabberNodeMap);
-    std::string cameraName = getCameraInfo(GenTL::URL_INFO_URL);
+    std::string cameraName = getCameraInfoString(GenTL::URL_INFO_URL);
     cameraCPort = std::make_shared<CPort>(genTL, PORT_CAMERA);
     frameGrabberNodeMap->_Connect(cameraCPort.get(), cameraName.c_str());
     return frameGrabberNodeMap;
@@ -220,10 +220,10 @@ std::vector<Stream> Device::getStreams() {
 }
 
 std::string Device::getId() {
-    return getInfo(GenTL::DEVICE_INFO_ID);
+    return getInfoString(GenTL::DEVICE_INFO_ID);
 }
 
-std::string Device::getInfo(GenTL::DEVICE_INFO_CMD info) {
+std::string Device::getInfoString(GenTL::DEVICE_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -245,7 +245,7 @@ std::string Device::getInfo(GenTL::DEVICE_INFO_CMD info) {
     return ret;
 }
 
-std::string Device::getCameraInfo(GenTL::PORT_INFO_CMD info) {
+std::string Device::getCameraInfoString(GenTL::PORT_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -277,7 +277,7 @@ std::string Device::getInfos(bool displayFull) {
     std::string values;
     std::string value;
     for (GenTL::INTERFACE_INFO_CMD info : infos) {
-        values.append(getInfo(info) + "|");
+        values.append(getInfoString(info) + "|");
     }
     return values;
 }

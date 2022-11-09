@@ -29,7 +29,7 @@ System::System(std::shared_ptr<const GenTLWrapper> genTlWrapper) {
     genTL->TLOpen(&TL);
 }
 
-std::string System::getInfo(GenTL::TL_INFO_CMD info) {
+std::string System::getInfoString(GenTL::TL_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -58,7 +58,7 @@ std::string System::getInfos(bool displayFull = false) {
     }
     std::string values;
     for (GenTL::TL_INFO_CMD info : infos) {
-        values.append(getInfo(info) + "|");
+        values.append(getInfoString(info) + "|");
     }
     return values;
 }

@@ -19,14 +19,14 @@ std::shared_ptr<GenApi::CNodeMapRef> Interface::getFrameGrabberNodeMap(const int
     std::string frameGrabberURL = getXMLPath(XMLindex);
     std::shared_ptr<GenApi::CNodeMapRef> frameGrabberNodeMap = std::make_shared<GenApi::CNodeMapRef>("MFG_FRAME_GRABBER");
     loadXMLFromURL(frameGrabberURL.c_str(), nullptr, frameGrabberNodeMap);
-    std::string frameGrabberName = getFrameGrabberInfo(GenTL::PORT_INFO_PORTNAME);
+    std::string frameGrabberName = getFrameGrabberInfoString(GenTL::PORT_INFO_PORTNAME);
     frameGrabberCPort = std::make_shared<CPort>(genTL, frameGrabberPort);
     frameGrabberNodeMap->_Connect(frameGrabberCPort.get(), frameGrabberName.c_str());
     return frameGrabberNodeMap;
 }
 
 std::string Interface::getId() {
-    return getInfo(GenTL::INTERFACE_INFO_ID);
+    return getInfoString(GenTL::INTERFACE_INFO_ID);
 }
 
 std::string Interface::getXMLPath(int frameGrabberIndex) {
@@ -107,7 +107,7 @@ Device Interface::getDevice(const int deviceIndex, const int updateTimeout) {
 
 }
 
-std::string Interface::getFrameGrabberInfo(GenTL::PORT_INFO_CMD info) {
+std::string Interface::getFrameGrabberInfoString(GenTL::PORT_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -127,7 +127,7 @@ std::string Interface::getFrameGrabberInfo(GenTL::PORT_INFO_CMD info) {
     return ret;
 }
 
-std::string Interface::getInfo(GenTL::INTERFACE_INFO_CMD info) {
+std::string Interface::getInfoString(GenTL::INTERFACE_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -159,7 +159,7 @@ std::string Interface::getInfos(bool displayFull = false) {
     std::string values;
     std::string value;
     for (GenTL::INTERFACE_INFO_CMD info : infos) {
-        values.append(getInfo(info) + "|");
+        values.append(getInfoString(info) + "|");
     }
     return values;
 }

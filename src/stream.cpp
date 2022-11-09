@@ -11,25 +11,7 @@ Stream::Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPt
     }
 }
 
-std::vector<Buffer *> Stream::getBuffers() {
-    auto buffers = std::vector<Buffer *>();
-    GenTL::STREAM_INFO_CMD infoCmd = GenTL::STREAM_INFO_BUF_ANNOUNCE_MIN;
-    size_t bufferSize = sizeof (minBufferNumber);
-    GenTL::INFO_DATATYPE type;
-    GenTL::GC_ERROR status;
-    for(int i =0; i < minBufferNumber; i ++){
-        GenTL::BUFFER_HANDLE BUFFER;
-        status = genTL->DSAllocAndAnnounceBuffer(DS, expectedBufferSize, nullptr, &BUFFER);
-        buffers.push_back(new Buffer(BUFFER));
-        if (status != GenTL::GC_ERR_SUCCESS) {
-            std::cout << "Error " << status << " Can't allocate buffer" << std::endl;
-            return buffers;
-        }
-    }
-    return buffers;
-}
-
-std::string Stream::getInfo(GenTL::STREAM_INFO_CMD info) {
+std::string Stream::getInfoString(GenTL::STREAM_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
@@ -50,7 +32,7 @@ std::string Stream::getInfo(GenTL::STREAM_INFO_CMD info) {
 }
 
 std::string Stream::getId() {
-    return getInfo(GenTL::STREAM_INFO_ID);
+    return getInfoString(GenTL::STREAM_INFO_ID);
 }
 
 std::string Stream::getInfos(bool displayFull) {
@@ -62,7 +44,7 @@ std::string Stream::getInfos(bool displayFull) {
     }
     std::string values;
     for (GenTL::TL_INFO_CMD info : infos) {
-        values.append(getInfo(info) + "|");
+        values.append(getInfoString(info) + "|");
     }
     return values;
 }

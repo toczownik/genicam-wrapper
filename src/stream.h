@@ -9,10 +9,10 @@ class Stream {
 public:
     Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::DEV_HANDLE DEV);
     ~Stream();
-    std::vector<Buffer *> getBuffers();
+    Buffer getBuffer();
     std::string getId();
     template<typename T>
-    T getInfo(GenTL::STREAM_INFO_CMD info) {
+    T getInfoNumeric(GenTL::STREAM_INFO_CMD info) {
         GenTL::GC_ERROR status;
         GenTL::INFO_DATATYPE type;
         size_t bufferSize;
@@ -29,7 +29,7 @@ public:
             throw GenTLException(status, "Error retrieving information from a system");
         }
     }
-    std::string getInfo(GenTL::STREAM_INFO_CMD info);
+    std::string getInfoString(GenTL::STREAM_INFO_CMD info);
     std::string getInfos(bool displayFull);
 
 private:

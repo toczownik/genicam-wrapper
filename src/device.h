@@ -16,7 +16,7 @@ public:
     Stream getStream(int streamIndex);
     std::string getId();
     template<typename T>
-    T getInfo(GenTL::DEVICE_INFO_CMD info) {
+    T getInfoNumeric(GenTL::DEVICE_INFO_CMD info) {
         GenTL::GC_ERROR status;
         GenTL::INFO_DATATYPE type;
         size_t bufferSize;
@@ -33,7 +33,7 @@ public:
         return 0;
     }
     template<typename T>
-    T getCameraInfo(GenTL::PORT_INFO_CMD info) {
+    T getCameraInfoNumeric(GenTL::PORT_INFO_CMD info) {
         GenTL::GC_ERROR status;
         GenTL::INFO_DATATYPE type;
         size_t bufferSize;
@@ -49,8 +49,8 @@ public:
         }
         return 0;
     }
-    std::string getCameraInfo(GenTL::PORT_INFO_CMD info);
-    std::string getInfo(GenTL::DEVICE_INFO_CMD info);
+    std::string getCameraInfoString(GenTL::PORT_INFO_CMD info);
+    std::string getInfoString(GenTL::DEVICE_INFO_CMD info);
     std::string getInfos(bool displayFull);
     std::shared_ptr<GenApi::CNodeMapRef> getCameraNodeMap(int XMLIndex, bool enableImageGenerator);
 

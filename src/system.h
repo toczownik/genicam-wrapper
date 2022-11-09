@@ -15,7 +15,7 @@ public:
     Interface getInterface(std::string interfaceName, int updateTimeout = 100);
     std::string getInfos(bool displayFull);
     template<typename T>
-    T getInfo(GenTL::TL_INFO_CMD info) {
+    T getInfoNumeric(GenTL::TL_INFO_CMD info) {
         GenTL::GC_ERROR status;
         GenTL::INFO_DATATYPE type;
         size_t bufferSize;
@@ -31,7 +31,7 @@ public:
         }
         return value;
     }
-    std::string getInfo(GenTL::TL_INFO_CMD info);
+    std::string getInfoString(GenTL::TL_INFO_CMD info);
     ~System();
 
 private:
