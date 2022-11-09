@@ -1,9 +1,8 @@
 #pragma once
 
 #include "gentl_wrapper.h"
-
+#include "GenTLException.hpp"
 #include <GenApi/GenApi.h>
-
 
 /**
   This is the mPortHandle definition that connects GenAPI to GenTL. It is implemented

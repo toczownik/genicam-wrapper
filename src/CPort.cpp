@@ -33,22 +33,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cport.h"
+#include "CPort.h"
 #include "GenICam.h"
 
-#include <fstream>
-#include <sstream>
-#include <cctype>
 #include <string>
-#include <algorithm>
 #include <utility>
 
 //#define DEBUG_CPORT
 
 
-CPort::CPort(std::shared_ptr<const GenTLWrapper> _gentl, GenTL::PORT_HANDLE pPortHandle) : mGenTL(std::move(_gentl))
+CPort::CPort(std::shared_ptr<const GenTLWrapper> _gentl, GenTL::PORT_HANDLE pPortHandle) : mGenTL(std::move(_gentl)),
+                                                                                           mPortHandle (pPortHandle)
+
 {
-    mPortHandle = pPortHandle;
 }
 
 void CPort::Read(void *buffer, int64_t addr, int64_t length)
@@ -60,20 +57,21 @@ void CPort::Read(void *buffer, int64_t addr, int64_t length)
 
     if (mPortHandle != nullptr)
     {
-        if (mGenTL->GCReadPort(mPortHandle, static_cast<uint64_t>(addr), buffer, &size) !=
-            GenTL::GC_ERR_SUCCESS)
+        GenTL::GC_ERROR error;
+        error = mGenTL->GCReadPort(mPortHandle, static_cast<uint64_t>(addr), buffer, &size);
+        if (error != GenTL::GC_ERR_SUCCESS)
         {
-            //throw GenTLException("CPort::Read()", mGenTL);
+            throw GenTLException("CPort::Read() Error " + std::to_string(error));
         }
 
         if (size != static_cast<size_t>(length))
         {
-            //throw GenTLException("CPort::Read(): Returned size not as expected");
+            throw GenTLException("CPort::Read(): Returned size not as expected");
         }
     }
     else
     {
-        //throw GenTLException("CPort::Read(): Port has been closed");
+        throw GenTLException("CPort::Read(): Port has been closed");
     }
 }
 
@@ -85,20 +83,21 @@ void CPort::Write(const void *buffer, int64_t addr, int64_t length)
     auto size=static_cast<size_t>(length);
     if (mPortHandle != nullptr)
     {
-        if (mGenTL->GCWritePort(mPortHandle, static_cast<uint64_t>(addr), buffer, &size) !=
-            GenTL::GC_ERR_SUCCESS)
+        GenTL::GC_ERROR error;
+        error = mGenTL->GCWritePort(mPortHandle, static_cast<uint64_t>(addr), buffer, &size);
+        if (error != GenTL::GC_ERR_SUCCESS)
         {
-            //   throw GenICam_3_2::AccessException("asd");
+            throw GenTLException("CPort::Read() Error " + std::to_string(error));
         }
 
         if (size != static_cast<size_t>(length))
         {
-            //  throw GenICam_3_2::AccessException"CPort::Write(): Returned size not as expected");
+            throw GenTLException("CPort::Read(): Returned size not as expected");
         }
     }
     else
     {
-        // throw GenTLException("CPort::Write(): Port has been closed");
+        throw GenTLException("CPort::Write(): Port has been closed");
     }
 }
 
@@ -111,4 +110,3 @@ GenApi::EAccessMode CPort::GetAccessMode() const
 
     return GenApi::NA;
 }
-

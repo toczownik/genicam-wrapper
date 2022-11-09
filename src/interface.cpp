@@ -1,50 +1,58 @@
 #include <iostream>
+#include <fstream>
 #include <utility>
 #include "interface.h"
-#include "cport.h"
+#include <Base/GCString.h>
 
-Interface::Interface(const char *interfaceId, std::shared_ptr<const GenTLWrapper> genTLPtr,
+Interface::Interface(std::string interfaceId, std::shared_ptr<const GenTLWrapper> genTLPtr,
                      GenTL::TL_HANDLE systemHandle) {
-    TL = systemHandle;
     genTL = std::move(genTLPtr);
-    GenTL::GC_ERROR status = genTL->TLOpenInterface(TL, interfaceId, &IF);
+    GenTL::GC_ERROR status = genTL->TLOpenInterface(systemHandle, interfaceId.c_str(), &IF);
     if (status != GenTL::GC_ERR_SUCCESS) {
-        std::string message = "Couldn't open interface" + std::string(interfaceId);
-        throw std::runtime_error(message);
+        std::string message = "Couldn't open interface " + std::string(interfaceId);
+        throw GenTLException(status, message);
     }
+    frameGrabberPort = IF;
+}
 
+std::shared_ptr<GenApi::CNodeMapRef> Interface::getFrameGrabberNodeMap(const int XMLindex) {
+    std::string frameGrabberURL = getXMLPath(XMLindex);
+    std::shared_ptr<GenApi::CNodeMapRef> frameGrabberNodeMap = std::make_shared<GenApi::CNodeMapRef>("MFG_FRAME_GRABBER");
+    loadXMLFromURL(frameGrabberURL.c_str(), nullptr, frameGrabberNodeMap);
+    std::string frameGrabberName = getFrameGrabberInfo(GenTL::PORT_INFO_PORTNAME);
+    frameGrabberCPort = std::make_shared<CPort>(genTL, frameGrabberPort);
+    frameGrabberNodeMap->_Connect(frameGrabberCPort.get(), frameGrabberName.c_str());
+    return frameGrabberNodeMap;
 }
 
 std::string Interface::getId() {
-    std::string id;
-    if (getInfo(GenTL::INTERFACE_INFO_ID, &id) != 0) {
-        return "Couldn't retrieve id";
-    }
-    return id;
+    return getInfo(GenTL::INTERFACE_INFO_ID);
 }
 
-const char* Interface::getXMLPath(int frameGrabberIndex) {
+std::string Interface::getXMLPath(int frameGrabberIndex) {
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
-    char *path;
+    char* path;
     GenTL::GC_ERROR status = genTL->GCGetPortURLInfo(frameGrabberPort, frameGrabberIndex, GenTL::URL_INFO_URL, &type,
                                                      nullptr, &bufferSize);
-    if (status != GenTL::GC_ERR_SUCCESS) {
-        path = nullptr;
-    } else {
+    if (status == GenTL::GC_ERR_SUCCESS) {
         path = new char[bufferSize];
-        status = genTL->GCGetPortURLInfo(frameGrabberPort, frameGrabberIndex, GenTL::URL_INFO_URL, &type,
-                                                         path, &bufferSize);
-        if (status != GenTL::GC_ERR_SUCCESS) {
-            path = nullptr;
+        status = genTL->GCGetPortURLInfo(frameGrabberPort, frameGrabberIndex, GenTL::URL_INFO_URL, &type, path,
+                                         &bufferSize);
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            std::string pathString(path);
+            delete[] path;
+            return pathString;
+        } else {
+            delete[] path;
+            throw GenTLException(status, "Error retrieving frame grabber XML");
         }
-        delete[] path;
-
+    } else {
+        throw GenTLException(status, "Error retrieving frame grabber XML");
     }
-    return path;
 }
 
-std::vector<Device> Interface::getDevices(const int updateTimeout = 100) {
+std::vector<Device> Interface::getDevices(const int updateTimeout) {
     GenTL::GC_ERROR status = genTL->IFUpdateDeviceList(IF, nullptr, updateTimeout);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::cout << "Error " << status << " " << std::endl;
@@ -71,50 +79,174 @@ std::vector<Device> Interface::getDevices(const int updateTimeout = 100) {
             std::cout << "Error " << status << " Can't get device ID" << std::endl;
             return devices;
         }
-        devices.emplace_back(deviceId, genTL, IF, TL);
+        devices.emplace_back(deviceId, genTL, IF);
         delete[] deviceId;
     }
     return devices;
 }
 
-int Interface::getInfo(GenTL::INTERFACE_INFO_CMD info, std::string* value) {
+Device Interface::getDevice(const int deviceIndex, const int updateTimeout) {
+    GenTL::GC_ERROR status = genTL->IFUpdateDeviceList(IF, nullptr, updateTimeout);
+    if (status == GenTL::GC_ERR_SUCCESS) {
+        size_t bufferSize = 0;
+        status = genTL->IFGetDeviceID(IF, deviceIndex, nullptr, &bufferSize);
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            char* deviceName = new char [bufferSize];
+            status = genTL->IFGetDeviceID(IF, deviceIndex, deviceName, &bufferSize);
+            if (status == GenTL::GC_ERR_SUCCESS) {
+                return {deviceName, genTL, IF};
+            } else {
+                throw GenTLException(status, "Error retrieving device name");
+            }
+        } else {
+            throw GenTLException(status, "Error retrieving device name");
+        }
+    } else {
+        throw GenTLException(status, "Could not update device list");
+    }
+
+}
+
+std::string Interface::getFrameGrabberInfo(GenTL::PORT_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
+    char* value;
+    status = genTL->GCGetPortInfo(frameGrabberPort, info, &type, nullptr, &bufferSize);
+    if (status == GenTL::GC_ERR_SUCCESS) {
+        value = new char [bufferSize];
+        status = genTL->GCGetPortInfo(frameGrabberPort, info, &type, value, &bufferSize);
+        if (status != GenTL::GC_ERR_SUCCESS) {
+            throw GenTLException(status, "Error retrieving information from a frame grabber");
+        }
+    } else {
+        throw GenTLException(status, "Error retrieving information buffer size from a frame grabber");
+    }
+    std::string ret(value);
+    delete[] value;
+    return ret;
+}
+
+std::string Interface::getInfo(GenTL::INTERFACE_INFO_CMD info) {
+    GenTL::GC_ERROR status;
+    GenTL::INFO_DATATYPE type;
+    size_t bufferSize;
+    char* value;
     status = genTL->IFGetInfo(IF, info, &type, nullptr, &bufferSize);
     if (status == GenTL::GC_ERR_SUCCESS) {
-        char *retrieved = new char[bufferSize];
-        status = genTL->IFGetInfo(IF, info, &type, retrieved, &bufferSize);
-        if (status == GenTL::GC_ERR_SUCCESS) {
-            *value = retrieved;
-        } else {
-            return -1;
+        value = new char [bufferSize];
+        status = genTL->IFGetInfo(IF, info, &type, value, &bufferSize);
+        if (status != GenTL::GC_ERR_SUCCESS) {
+            delete[] value;
+            throw GenTLException(status, "Error retrieving information from an interface");
         }
-        delete[] retrieved;
+
     } else {
-        return -2;
+        throw GenTLException(status, "Error retrieving information buffer size from an interface");
     }
-    return 0;
+    std::string ret(value);
+    delete[] value;
+    return ret;
 }
 
 std::string Interface::getInfos(bool displayFull = false) {
-    auto infos = new std::vector<GenTL::INTERFACE_INFO_CMD>;
+    std::vector<GenTL::INTERFACE_INFO_CMD> infos;
     if (displayFull) {
-        infos->insert(infos->end(), {GenTL::INTERFACE_INFO_ID, GenTL::INTERFACE_INFO_DISPLAYNAME, GenTL::INTERFACE_INFO_TLTYPE});
+        infos.insert(infos.end(), {GenTL::INTERFACE_INFO_ID, GenTL::INTERFACE_INFO_DISPLAYNAME, GenTL::INTERFACE_INFO_TLTYPE});
     } else {
-        infos->push_back(GenTL::INTERFACE_INFO_ID);
+        infos.push_back(GenTL::INTERFACE_INFO_ID);
     }
     std::string values;
     std::string value;
-    for (GenTL::INTERFACE_INFO_CMD info : *infos) {
-        if (getInfo(info, &value) == 0) {
-            values.append(value);
-            values.append(" | ");
-        }
-
+    for (GenTL::INTERFACE_INFO_CMD info : infos) {
+        values.append(getInfo(info) + "|");
     }
-    delete infos;
     return values;
+}
+
+void Interface::getZippedXMLDataFromRegister(const char *url, CPort *port, void * zipData, size_t *zipSize) {
+    std::string trash, address, size;
+    std::string urlString = url;
+    std::stringstream urlStringStream(urlString);
+    std::getline(urlStringStream, trash, ';');
+    std::getline(urlStringStream, address, ';');
+    std::getline(urlStringStream, size, ';');
+    uint64_t addressInt = strtoul(address.c_str(), nullptr, 16);
+    uint64_t sizeInt = strtoul(size.c_str(), nullptr, 16);
+    if(zipData == nullptr){
+        *zipSize = sizeInt;
+        return;
+    }
+    port->Read(zipData, addressInt, sizeInt);
+    *zipSize = sizeInt;
+}
+
+std::string Interface::getXmlStringFromRegisterMap(const char *url, CPort * port) {
+    std::string trash, address, size;
+    std::string urlString = url;
+    std::stringstream urlStringStream(urlString);
+    std::getline(urlStringStream, trash, ';');
+    std::getline(urlStringStream, address, ';');
+    std::getline(urlStringStream, size, ';');
+    uint64_t addressInt = strtoul(address.c_str(), nullptr, 16);
+    uint64_t sizeInt = strtoul(size.c_str(), nullptr, 16);
+    char * buffer = new char[sizeInt+1];
+    port->Read(buffer, addressInt, sizeInt);
+    buffer[sizeInt] = '\0';
+    std::string xml = buffer;
+    delete[](buffer);
+    return xml;
+}
+
+std::string Interface::getXMLStringFromDisk(const char *url) {
+    std::string trash, address;
+    std::string urlString = url;
+    std::stringstream urlStringStream(urlString);
+    std::getline(urlStringStream, trash, ':');
+    std::getline(urlStringStream, address, '?');
+    std::ifstream t(address);
+    std::string xml;
+    t.seekg(0, std::ios::end);
+    xml.reserve(t.tellg());
+    t.seekg(0, std::ios::beg);
+    xml.assign((std::istreambuf_iterator<char>(t)),std::istreambuf_iterator<char>());
+    return xml;
+}
+
+std::string Interface::getXMLStringFromURL(const char *url, CPort *port) {
+    if(strncmp(url, "local", 5) == 0 || strncmp(url, "Local", 5) == 0) {
+        return getXmlStringFromRegisterMap(url, port);
+    }
+    else if(strncmp(url, "file", 4) == 0 || strncmp(url, "File", 4) == 0) {
+        return getXMLStringFromDisk(url);
+    }
+    else {
+        std::cout << "Can't get xml from given url: " << url << std::endl;
+        exit(-1000);
+    }
+}
+
+void Interface::loadXMLFromURL(const char *url, CPort * port, const std::shared_ptr<GenApi::CNodeMapRef>& nodeMap) {
+    std::string urlString = url;
+    std::string xmlString;
+    bool zipped = false;
+    void * zipData;
+    size_t zipSize;
+    if(urlString.find("zip") !=  std::string::npos) {
+        zipped = true;
+        getZippedXMLDataFromRegister(url, port, nullptr, &zipSize);
+        zipData = new char[zipSize];
+        getZippedXMLDataFromRegister(url, port, zipData, &zipSize);
+    }
+    else {
+        xmlString = getXMLStringFromURL(url, port);
+    }
+    if(zipped) {
+        nodeMap->_LoadXMLFromZIPData(zipData, zipSize);
+    }
+    else {
+        nodeMap->_LoadXMLFromString(xmlString.c_str());
+    }
 }
 
 Interface::~Interface() {

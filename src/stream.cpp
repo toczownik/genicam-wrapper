@@ -4,35 +4,6 @@
 
 Stream::Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::DEV_HANDLE DEV) {
     genTL = std::move(genTLPtr);
-    /*GenTL::STREAM_INFO_CMD infoCmd = GenTL::STREAM_INFO_DEFINES_PAYLOADSIZE;
-    definesPayloadSize = false;
-    size_t bufferSize = sizeof(definesPayloadSize);
-
-    GenTL::INFO_DATATYPE type;
-    GenTL::GC_ERROR status = genTL->DSGetInfo(DS, infoCmd, &type, &definesPayloadSize, &bufferSize);
-    if (status != GenTL::GC_ERR_SUCCESS) {
-        std::cout << "Error " << status << " Can't get information if stream defines buffer size" << std::endl;
-        return;
-    }
-    expectedBufferSize = 0;
-    if (definesPayloadSize){
-        infoCmd = GenTL::STREAM_INFO_PAYLOAD_SIZE;
-        bufferSize = sizeof(expectedBufferSize);
-        status = genTL->DSGetInfo(DS, infoCmd, &type, &expectedBufferSize, &bufferSize);
-        if (status != GenTL::GC_ERR_SUCCESS) {
-            std::cout << "Error " << status << " Can't get information about expected buffer size" << std::endl;
-            return;
-        }
-    }
-    else{
-        //Our mGenTL defines this parameter, if it does not this information should be retrieved from other source
-    }
-    infoCmd = GenTL::STREAM_INFO_BUF_ANNOUNCE_MIN;
-    bufferSize = sizeof (minBufferNumber);
-    status = genTL->DSGetInfo(DS, infoCmd, &type, &minBufferNumber, &bufferSize);
-    if (status != GenTL::GC_ERR_SUCCESS) {
-        std::cout << "Error " << status << " Can't get information about expected buffer size" << std::endl;
-    }*/
     GenTL::GC_ERROR status = genTL->DevOpenDataStream(DEV, streamId, &DS);
     if (status != GenTL::GC_ERR_SUCCESS) {
         std::string message = "Couldn't open stream" + std::string(streamId);
@@ -58,59 +29,45 @@ std::vector<Buffer *> Stream::getBuffers() {
     return buffers;
 }
 
-std::string Stream::getId() {
-    std::string id;
-    if (getInfo<std::string>(GenTL::STREAM_INFO_ID, &id) != 0){
-        return "Couldn't retrieve id";
+std::string Stream::getInfo(GenTL::STREAM_INFO_CMD info) {
+    GenTL::GC_ERROR status;
+    GenTL::INFO_DATATYPE type;
+    size_t bufferSize;
+    char* value;
+    status = genTL->DSGetInfo(DS, info, &type, nullptr, &bufferSize);
+    if (status == GenTL::GC_ERR_SUCCESS) {
+        value = new char [bufferSize];
+        status = genTL->DSGetInfo(DS, info, &type, value, &bufferSize);
+        if (status != GenTL::GC_ERR_SUCCESS) {
+            throw GenTLException(status, "Error retrieving information from a system");
+        }
+    } else {
+        throw GenTLException(status, "Error retrieving information from a system");
     }
-    return id;
+    std::string ret(value);
+    delete[] value;
+    return ret;
 }
 
-
+std::string Stream::getId() {
+    return getInfo(GenTL::STREAM_INFO_ID);
+}
 
 std::string Stream::getInfos(bool displayFull) {
-    auto infos = new std::vector<GenTL::STREAM_INFO_CMD>;
+    std::vector<GenTL::STREAM_INFO_CMD_LIST> infos;
     if (displayFull) {
-        infos->insert(infos->end(), {GenTL::STREAM_INFO_PAYLOAD_SIZE, GenTL::STREAM_INFO_IS_GRABBING, GenTL::STREAM_INFO_BUF_ANNOUNCE_MIN});
+        infos.insert(infos.end(), {GenTL::STREAM_INFO_PAYLOAD_SIZE, GenTL::STREAM_INFO_IS_GRABBING, GenTL::STREAM_INFO_BUF_ANNOUNCE_MIN});
     } else {
-        infos->push_back(GenTL::STREAM_INFO_PAYLOAD_SIZE);
+        infos.push_back(GenTL::STREAM_INFO_PAYLOAD_SIZE);
     }
     std::string values;
-    std::string value;
-    for (GenTL::STREAM_INFO_CMD info : *infos) {
-        if (getInfo(info, &value) == 0) {
-
-            values.append(value);
-            values.append(" | ");
-        }
+    for (GenTL::TL_INFO_CMD info : infos) {
+        values.append(getInfo(info) + "|");
     }
-    delete infos;
     return values;
 }
 
 Stream::~Stream()  {
     genTL->DSClose(DS);
     genTL.reset();
-}
-
-int Stream::getInfo(GenTL::STREAM_INFO_CMD info, std::string *value) {
-    GenTL::GC_ERROR status;
-    GenTL::INFO_DATATYPE type;
-    size_t bufferSize;
-    int ret;
-    status = genTL->DSGetInfo(DS, info, &type, nullptr, &bufferSize);
-    if (status == GenTL::GC_ERR_SUCCESS) {
-        char *retrieved = new char[bufferSize];
-        status = genTL->DSGetInfo(DS, info, &type, retrieved, &bufferSize);
-        if (status == GenTL::GC_ERR_SUCCESS) {
-            *value = retrieved;
-            ret = 0;
-        } else {
-            ret = -1;
-        }
-        delete[] retrieved;
-    } else {
-        ret = -2;
-    }
-    return ret;
 }

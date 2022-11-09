@@ -12,24 +12,26 @@ public:
     explicit System(const std::string path);
     explicit System(std::shared_ptr<const GenTLWrapper> genTlWrapper);
     std::vector<Interface> getInterfaces(int updateTimeout = 100);
+    Interface getInterface(std::string interfaceName, int updateTimeout = 100);
     std::string getInfos(bool displayFull);
     template<typename T>
-    int getInfo(GenTL::TL_INFO_CMD info, T *value) {
+    T getInfo(GenTL::TL_INFO_CMD info) {
         GenTL::GC_ERROR status;
         GenTL::INFO_DATATYPE type;
         size_t bufferSize;
+        T value(0);
         status = genTL->TLGetInfo(TL, info, &type, nullptr, &bufferSize);
         if (status == GenTL::GC_ERR_SUCCESS) {
-            status = genTL->TLGetInfo(TL, info, &type, value, &bufferSize);
+            status = genTL->TLGetInfo(TL, info, &type, &value, &bufferSize);
             if (status != GenTL::GC_ERR_SUCCESS) {
-                return -1;
+                throw GenTLException(status, "Error retrieving information from a system");
             }
         } else {
-            return -1;
+            throw GenTLException(status, "Error retrieving information from a system");
         }
-        return 0;
+        return value;
     }
-    int getInfo(GenTL::TL_INFO_CMD info, std::string* value);
+    std::string getInfo(GenTL::TL_INFO_CMD info);
     ~System();
 
 private:

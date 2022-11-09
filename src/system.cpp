@@ -29,47 +29,37 @@ System::System(std::shared_ptr<const GenTLWrapper> genTlWrapper) {
     genTL->TLOpen(&TL);
 }
 
-int System::getInfo(GenTL::TL_INFO_CMD info, std::string* value) {
+std::string System::getInfo(GenTL::TL_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
     size_t bufferSize;
-    int ret;
+    char* value;
     status = genTL->TLGetInfo(TL, info, &type, nullptr, &bufferSize);
     if (status == GenTL::GC_ERR_SUCCESS) {
-        char *retrieved = new char[bufferSize];
-        status = genTL->TLGetInfo(TL, info, &type, retrieved, &bufferSize);
-        if (status == GenTL::GC_ERR_SUCCESS) {
-            *value = retrieved;
-            ret = 0;
-        } else {
-            ret = -1;
+        value = new char [bufferSize];
+        status = genTL->TLGetInfo(TL, info, &type, value, &bufferSize);
+        if (status != GenTL::GC_ERR_SUCCESS) {
+            throw GenTLException(status, "Error retrieving information from a system");
         }
-        delete[] retrieved;
     } else {
-        ret = -2;
+        throw GenTLException(status, "Error retrieving information from a system");
     }
+    std::string ret(value);
+    delete[] value;
     return ret;
 }
 
 std::string System::getInfos(bool displayFull = false) {
-    auto infos = new std::vector<GenTL::TL_INFO_CMD>;
+    std::vector<GenTL::INTERFACE_INFO_CMD> infos;
     if (displayFull) {
-        infos->insert(infos->end(), {GenTL::TL_INFO_ID, GenTL::TL_INFO_VENDOR, GenTL::TL_INFO_MODEL, GenTL::TL_INFO_VERSION, GenTL::TL_INFO_TLTYPE, GenTL::TL_INFO_NAME});
+        infos.insert(infos.end(), {GenTL::TL_INFO_ID, GenTL::TL_INFO_VENDOR, GenTL::TL_INFO_MODEL, GenTL::TL_INFO_VERSION, GenTL::TL_INFO_TLTYPE});
     } else {
-        infos->push_back(GenTL::TL_INFO_VENDOR);
+        infos.push_back(GenTL::TL_INFO_ID);
     }
     std::string values;
-    for (GenTL::TL_INFO_CMD info : *infos) {
-        std::string value;
-        if (getInfo(info, &value) == 0) {
-            values.append(value);
-        } else {
-            values.append("Couldn't retrieve info");
-        }
-        values.append(" | ");
-
+    for (GenTL::TL_INFO_CMD info : infos) {
+        values.append(getInfo(info) + "|");
     }
-    delete infos;
     return values;
 }
 
@@ -106,6 +96,14 @@ std::vector<Interface> System::getInterfaces(const int updateTimeout) {
 
     }
     return interfaces;
+}
+
+Interface System::getInterface(std::string interfaceName, int updateTimeout) {
+    GenTL::GC_ERROR status = genTL->TLUpdateInterfaceList(TL, nullptr, updateTimeout);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        throw GenTLException(status, "Could not refresh interface list");
+    }
+    return {std::move(interfaceName), genTL, TL};
 }
 
 System::~System() {
