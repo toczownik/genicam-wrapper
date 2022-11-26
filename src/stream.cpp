@@ -11,6 +11,36 @@ Stream::Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPt
     }
 }
 
+void Stream::getBuffers(void) {
+    expectedBufferSize = 0;
+    if (getInfoNumeric<bool>(GenTL::STREAM_INFO_DEFINES_PAYLOADSIZE)) {
+        expectedBufferSize = getInfoNumeric<size_t>(GenTL::STREAM_INFO_PAYLOAD_SIZE);
+    }
+    auto bufferNumber = getInfoNumeric<size_t>(GenTL::STREAM_INFO_BUF_ANNOUNCE_MIN);
+    buffers;
+    GenTL::GC_ERROR status;
+    for (int i = 0; i < bufferNumber; ++i) {
+        GenTL::BUFFER_HANDLE BUFFER;
+        status = genTL->DSAllocAndAnnounceBuffer(DS, expectedBufferSize, nullptr, &BUFFER);
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            buffers.emplace_back(BUFFER);
+        } else {
+            throw GenTLException(status, "Could not allocate buffer");
+        }
+    }
+    for (auto buffer : buffers) {
+        status = genTL->DSQueueBuffer(DS, buffer);
+        if (status != GenTL::GC_ERR_SUCCESS) {
+            throw GenTLException(status, "Could not queue buffer");
+        }
+    }
+    GenTL::EVENT_HANDLE EVENT;
+    status = genTL->GCRegisterEvent(DS, GenTL::EVENT_NEW_BUFFER, &EVENT);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        throw GenTLException(status, "Could not register an event calling for new buffers");
+    }
+}
+
 std::string Stream::getInfoString(GenTL::STREAM_INFO_CMD info) {
     GenTL::GC_ERROR status;
     GenTL::INFO_DATATYPE type;
@@ -21,17 +51,17 @@ std::string Stream::getInfoString(GenTL::STREAM_INFO_CMD info) {
         value = new char [bufferSize];
         status = genTL->DSGetInfo(DS, info, &type, value, &bufferSize);
         if (status != GenTL::GC_ERR_SUCCESS) {
-            throw GenTLException(status, "Error retrieving information from a system");
+            throw GenTLException(status, "Error retrieving information from a stream");
         }
     } else {
-        throw GenTLException(status, "Error retrieving information from a system");
+        throw GenTLException(status, "Error retrieving information from a stream");
     }
     std::string ret(value);
     delete[] value;
     return ret;
 }
 
-std::string Stream::getId() {
+std::string Stream::getId(void) {
     return getInfoString(GenTL::STREAM_INFO_ID);
 }
 

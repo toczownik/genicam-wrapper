@@ -1,5 +1,7 @@
-set(SOURCE_FILES gentl_wrapper.cpp system.cpp interface.cpp device.cpp stream.cpp CPort.cpp)
-set(HEADER_FILES gentl_wrapper.h system.h interface.h device.h genicam_wrapper.h stream.h buffer.hpp CPort.h GenTLException.cpp GenTLException.hpp)
+set(SOURCE_FILES gentl_wrapper.cpp system.cpp interface.cpp device.cpp stream.cpp CPort.cpp GenTLException.cpp
+        buffer.cpp)
+set(HEADER_FILES gentl_wrapper.h system.h interface.h device.h genicam_wrapper.h stream.h buffer.hpp CPort.h
+        GenTLException.hpp)
 
 set(LIBRARY_NAME genicam_wrapper)
 
