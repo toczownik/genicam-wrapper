@@ -23,19 +23,42 @@ public:
             if (status == GenTL::GC_ERR_SUCCESS) {
                 return value;
             } else {
-                throw GenTLException(status, "Error retrieving information from a system");
+                throw GenTLException(status, "Error retrieving information from a stream");
             }
         } else {
-            throw GenTLException(status, "Error retrieving information from a system");
+            throw GenTLException(status, "Error retrieving information from a stream");
+        }
+    }
+    template<typename T>
+    T getBufferInfo(GenTL::STREAM_INFO_CMD info, GenTL::BUFFER_HANDLE handle) {
+        GenTL::GC_ERROR status;
+        GenTL::INFO_DATATYPE type;
+        size_t bufferSize;
+        T value(0);
+        status = genTL->DSGetBufferInfo(DS, handle, info, &type, nullptr, &bufferSize);
+        if (status == GenTL::GC_ERR_SUCCESS) {
+            status = genTL->DSGetBufferInfo(DS, handle, info, &type, &value, &bufferSize);
+            if (status == GenTL::GC_ERR_SUCCESS) {
+                return value;
+            } else {
+                throw GenTLException(status, "Error retrieving information from a buffer");
+            }
+        } else {
+            throw GenTLException(status, "Error retrieving information from a buffer");
         }
     }
     std::string getInfoString(GenTL::STREAM_INFO_CMD info);
     std::string getInfos(bool displayFull);
+    void startAcquisition();
+    void getFrame(const std::string& pathToImages);
+    void stopAcquisition();
 
 private:
     size_t expectedBufferSize;
-    size_t minBufferNumber;
     std::shared_ptr<const GenTLWrapper> genTL;
     GenTL::DS_HANDLE DS = nullptr;
     std::vector<GenTL::BUFFER_HANDLE> buffers;
+    GenTL::EVENT_HANDLE filledBufferEvent;
+    GenTL::EVENT_NEW_BUFFER_DATA getData(int timeout = 1000);
+    int frameNumber;
 };

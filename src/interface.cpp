@@ -15,7 +15,7 @@ Interface::Interface(std::string interfaceId, std::shared_ptr<const GenTLWrapper
     frameGrabberPort = IF;
 }
 
-std::shared_ptr<GenApi::CNodeMapRef> Interface::getFrameGrabberNodeMap(const int XMLindex) {
+std::shared_ptr<GenApi::CNodeMapRef> Interface::getFrameGrabberNodeMap(const int XMLindex, bool imageGeneratorEnabled) {
     std::string frameGrabberURL = getXMLPath(XMLindex);
     std::shared_ptr<GenApi::CNodeMapRef> frameGrabberNodeMap = std::make_shared<GenApi::CNodeMapRef>("MFG_FRAME_GRABBER");
     loadXMLFromURL(frameGrabberURL.c_str(), nullptr, frameGrabberNodeMap);
