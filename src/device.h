@@ -52,7 +52,8 @@ public:
     std::string getCameraInfoString(GenTL::PORT_INFO_CMD info);
     std::string getInfoString(GenTL::DEVICE_INFO_CMD info);
     std::string getInfos(bool displayFull);
-    std::shared_ptr<GenApi::CNodeMapRef> getCameraNodeMap(int XMLIndex, bool enableImageGenerator);
+    std::shared_ptr<GenApi::CNodeMapRef> getCameraNodeMap(int XMLIndex);
+    GenTL::PORT_HANDLE getPort();
 
 private:
     std::shared_ptr<const GenTLWrapper> genTL;

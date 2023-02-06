@@ -5,6 +5,13 @@
 #include "buffer.hpp"
 #include "GenTLException.hpp"
 
+struct FrameInfo {
+    uint8_t* dataPointer;
+    size_t height;
+    size_t width;
+    uint64_t pixelFormat;
+};
+
 class Stream {
 public:
     Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPtr, GenTL::DEV_HANDLE DEV);
@@ -50,8 +57,9 @@ public:
     std::string getInfoString(GenTL::STREAM_INFO_CMD info);
     std::string getInfos(bool displayFull);
     void startAcquisition();
-    void getFrame(const std::string& pathToImages);
+    FrameInfo getFrame(const std::string& pathToImages);
     void stopAcquisition();
+    void flush();
 
 private:
     size_t expectedBufferSize;

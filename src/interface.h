@@ -53,7 +53,7 @@ public:
     std::string getFrameGrabberInfoString(GenTL::PORT_INFO_CMD info);
     std::string getInfoString(GenTL::INTERFACE_INFO_CMD info);
     std::string getInfos(bool displayFull);
-    std::shared_ptr<GenApi::CNodeMapRef> getFrameGrabberNodeMap(int XMLindex, bool imageGeneratorEnabled);
+    std::shared_ptr<GenApi::CNodeMapRef> getFrameGrabberNodeMap(int XMLindex);
 
 private:
     GenTL::IF_HANDLE IF;

@@ -95,9 +95,10 @@ void Stream::startAcquisition() {
     if (status != GenTL::GC_ERR_SUCCESS) {
         throw GenTLException(status, "Could not start acquisition");
     }
+    frameNumber = 0;
 }
 
-void Stream::getFrame(const std::string& pathToImages) {
+FrameInfo Stream::getFrame(const std::string& pathToImages) {
     auto data = getData();
     auto dataPointer = getBufferInfo<uint8_t *>(GenTL::BUFFER_INFO_BASE, data.BufferHandle);
     auto dataSize = getBufferInfo<size_t>(GenTL::BUFFER_INFO_SIZE, data.BufferHandle);
@@ -105,9 +106,9 @@ void Stream::getFrame(const std::string& pathToImages) {
         auto tiffHeaderSize = getBufferInfo<size_t>(MFG_BUFFER_INFO_TIFF_HEADER_SIZE, data.BufferHandle);
         auto tiffHeaderPointer = getBufferInfo<uint8_t *>(MFG_BUFFER_INFO_TIFF_HEADER_POINTER, data.BufferHandle);
         std::ostringstream ss;
-        ss << std::setw(4) << std::setfill('0') << frameNumber + 1;
+        ss << std::setw(4) << std::setfill('0') << frameNumber;
         std::string frameNumberWithPadding(ss.str());
-        FILE* out_file = fopen(std::string(pathToImages + "/frame#" + frameNumberWithPadding).c_str(), "w+b");
+        FILE* out_file = fopen(std::string(pathToImages + "/frame#" + frameNumberWithPadding + ".bmp").c_str(), "w+b");
         if(out_file == nullptr){
             throw GenICamWrapperException("Failed to open directory " + pathToImages);
         }
@@ -115,17 +116,15 @@ void Stream::getFrame(const std::string& pathToImages) {
         fwrite(dataPointer, 1, dataSize, out_file);
         fclose(out_file);
     }
-    size_t width = getBufferInfo<size_t>(GenTL::BUFFER_INFO_WIDTH, data.BufferHandle);
-    size_t height = getBufferInfo<size_t>(GenTL::BUFFER_INFO_HEIGHT, data.BufferHandle);
-    uint64_t pixelFormat = getBufferInfo<uint64_t>(GenTL::BUFFER_INFO_PIXELFORMAT, data.BufferHandle);
+    FrameInfo frameInfo;
+    frameInfo.dataPointer = dataPointer;
+    frameInfo.width = getBufferInfo<size_t>(GenTL::BUFFER_INFO_WIDTH, data.BufferHandle);
+    frameInfo.height = getBufferInfo<size_t>(GenTL::BUFFER_INFO_HEIGHT, data.BufferHandle);
+    frameInfo.pixelFormat = getBufferInfo<uint64_t>(GenTL::BUFFER_INFO_PIXELFORMAT, data.BufferHandle);
     uint64_t timestamp = getBufferInfo<uint64_t>(GenTL::BUFFER_INFO_TIMESTAMP, data.BufferHandle);
     uint64_t frameId = getBufferInfo<uint64_t>(GenTL::BUFFER_INFO_FRAMEID, data.BufferHandle);
-    uint32_t headerType;
-    try {
-        headerType = getBufferInfo<uint64_t>(MFG_BUFFER_INFO_HEADER_TYPE, data.BufferHandle);
-    } catch (GenTLException e) {
-        std::cout << e.what() << std::endl;
-    }
+    genTL->DSQueueBuffer(DS, data.BufferHandle);
+    return frameInfo;
 }
 
 void Stream::stopAcquisition() {
@@ -135,12 +134,30 @@ void Stream::stopAcquisition() {
     }
 }
 
+void Stream::flush() {
+    GenTL::GC_ERROR status = genTL->DSFlushQueue(DS, GenTL::ACQ_QUEUE_ALL_DISCARD);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        throw GenTLException(status, "Could not flush the stream queue");
+    }
+    status = genTL->EventFlush(filledBufferEvent);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        throw GenTLException(status, "Could not flush event");
+    }
+    void *buffer;
+    void *privateData;
+    for (auto a: buffers) {
+        status = genTL->DSRevokeBuffer(DS, a, &buffer, &privateData);
+        if (status != GenTL::GC_ERR_SUCCESS) {
+            throw GenTLException(status, "Could not delete buffers");
+        }
+    }
+}
+
 GenTL::EVENT_NEW_BUFFER_DATA Stream::getData(int timeout) {
     size_t bufferSize = sizeof(GenTL::EVENT_NEW_BUFFER_DATA);
     GenTL::EVENT_NEW_BUFFER_DATA data;
     GenTL::GC_ERROR status = genTL->EventGetData(filledBufferEvent, &data, &bufferSize, timeout);
     if (status == GenTL::GC_ERR_TIMEOUT) {
-        frameNumber--;
         throw GenICamWrapperException("Timeout while retrieving frame");
     } else if (status != GenTL::GC_ERR_SUCCESS) {
         throw GenTLException(status, "Could not retrieve frame");

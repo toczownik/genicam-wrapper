@@ -106,6 +106,15 @@ Interface System::getInterface(std::string interfaceName, int updateTimeout) {
     return {std::move(interfaceName), genTL, TL};
 }
 
+uint32_t System::getNumInterfaces() {
+    uint32_t numInterfaces;
+    GenTL::GC_ERROR status = genTL->TLGetNumInterfaces(TL, &numInterfaces);
+    if (status != GenTL::GC_ERR_SUCCESS) {
+        throw GenTLException(status, "Could not get the number of interfaces");
+    }
+    return numInterfaces;
+}
+
 System::~System() {
     genTL->TLClose(TL);
     genTL->GCCloseLib();

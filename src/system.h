@@ -33,6 +33,7 @@ public:
     }
     std::string getInfoString(GenTL::TL_INFO_CMD info);
     ~System();
+    uint32_t getNumInterfaces();
 
 private:
     std::shared_ptr<const GenTLWrapper> genTL;
