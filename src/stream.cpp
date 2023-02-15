@@ -19,30 +19,45 @@ Stream::Stream(const char* streamId, std::shared_ptr<const GenTLWrapper> genTLPt
     }
 }
 
-void Stream::getBuffers(void) {
-    expectedBufferSize = 0;
+size_t Stream::getBufferSize() {
+    size_t bufferSize = 0;
     if (getInfoNumeric<bool>(GenTL::STREAM_INFO_DEFINES_PAYLOADSIZE)) {
-        expectedBufferSize = getInfoNumeric<size_t>(GenTL::STREAM_INFO_PAYLOAD_SIZE);
+        bufferSize = getInfoNumeric<size_t>(GenTL::STREAM_INFO_PAYLOAD_SIZE);
     }
-    auto bufferNumber = getInfoNumeric<size_t>(GenTL::STREAM_INFO_BUF_ANNOUNCE_MIN);
+    return bufferSize;
+}
+
+Buffer Stream::getBuffer(size_t bufferSize, void* pPrivate) {
+    GenTL::BUFFER_HANDLE bufferHandle;
+    GenTL::GC_ERROR status = genTL->DSAllocAndAnnounceBuffer(DS, bufferSize, pPrivate, &bufferHandle);
+    if (status == GenTL::GC_ERR_SUCCESS) {
+        return {bufferHandle, DS, genTL};
+    } else {
+        throw GenTLException(status, "Could not allocate buffer");
+    }
+}
+
+void Stream::getBuffers(size_t bufferNumber) {
+    auto defaultBufferNumber = getInfoNumeric<size_t>(GenTL::STREAM_INFO_BUF_ANNOUNCE_MIN);
+    if (bufferNumber < defaultBufferNumber) {
+        bufferNumber = defaultBufferNumber;
+    }
     GenTL::GC_ERROR status;
+    std::vector<Buffer> buffers = {};
     for (int i = 0; i < bufferNumber; ++i) {
-        GenTL::BUFFER_HANDLE BUFFER;
-        status = genTL->DSAllocAndAnnounceBuffer(DS, expectedBufferSize, nullptr, &BUFFER);
-        if (status == GenTL::GC_ERR_SUCCESS) {
-            buffers.emplace_back(BUFFER);
-        } else {
-            throw GenTLException(status, "Could not allocate buffer");
-        }
+        buffers.emplace_back(getBuffer(getBufferSize()));
     }
     for (auto buffer : buffers) {
-        status = genTL->DSQueueBuffer(DS, buffer);
-        if (status != GenTL::GC_ERR_SUCCESS) {
-            throw GenTLException(status, "Could not queue buffer");
-        }
+        buffer.queue();
     }
-    status = genTL->GCRegisterEvent(DS, GenTL::EVENT_NEW_BUFFER, &filledBufferEvent);
-    if (status != GenTL::GC_ERR_SUCCESS) {
+}
+
+Event Stream::registerEvent(GenTL::EVENT_TYPE event) {
+    GenTL::EVENT_HANDLE handle;
+    GenTL::GC_ERROR status = genTL->GCRegisterEvent(DS, event, &handle);
+    if (status == GenTL::GC_ERR_SUCCESS) {
+        return {handle, genTL};
+    } else {
         throw GenTLException(status, "Could not register an event calling for new buffers");
     }
 }
@@ -67,7 +82,7 @@ std::string Stream::getInfoString(GenTL::STREAM_INFO_CMD info) {
     return ret;
 }
 
-std::string Stream::getId(void) {
+std::string Stream::getId() {
     return getInfoString(GenTL::STREAM_INFO_ID);
 }
 
@@ -98,13 +113,10 @@ void Stream::startAcquisition() {
     frameNumber = 0;
 }
 
-FrameInfo Stream::getFrame(const std::string& pathToImages) {
-    auto data = getData();
-    auto dataPointer = getBufferInfo<uint8_t *>(GenTL::BUFFER_INFO_BASE, data.BufferHandle);
-    auto dataSize = getBufferInfo<size_t>(GenTL::BUFFER_INFO_SIZE, data.BufferHandle);
+void Stream::getFrame(GenTL::EVENT_NEW_BUFFER_DATA data, const Buffer& buffer, const std::string& pathToImages) {
     if (!pathToImages.empty()) {
-        auto tiffHeaderSize = getBufferInfo<size_t>(MFG_BUFFER_INFO_TIFF_HEADER_SIZE, data.BufferHandle);
-        auto tiffHeaderPointer = getBufferInfo<uint8_t *>(MFG_BUFFER_INFO_TIFF_HEADER_POINTER, data.BufferHandle);
+        auto tiffHeaderSize = buffer.getInfo<size_t>(MFG_BUFFER_INFO_TIFF_HEADER_SIZE);
+        auto tiffHeaderPointer = buffer.getInfo<uint8_t *>(MFG_BUFFER_INFO_TIFF_HEADER_POINTER);
         std::ostringstream ss;
         ss << std::setw(4) << std::setfill('0') << frameNumber;
         std::string frameNumberWithPadding(ss.str());
@@ -113,18 +125,10 @@ FrameInfo Stream::getFrame(const std::string& pathToImages) {
             throw GenICamWrapperException("Failed to open directory " + pathToImages);
         }
         fwrite(tiffHeaderPointer, 1, tiffHeaderSize, out_file);
-        fwrite(dataPointer, 1, dataSize, out_file);
+        fwrite(buffer.getInfo<uint8_t *>(GenTL::BUFFER_INFO_BASE), 1, buffer.getInfo<size_t>(GenTL::BUFFER_INFO_SIZE), out_file);
         fclose(out_file);
     }
-    FrameInfo frameInfo;
-    frameInfo.dataPointer = dataPointer;
-    frameInfo.width = getBufferInfo<size_t>(GenTL::BUFFER_INFO_WIDTH, data.BufferHandle);
-    frameInfo.height = getBufferInfo<size_t>(GenTL::BUFFER_INFO_HEIGHT, data.BufferHandle);
-    frameInfo.pixelFormat = getBufferInfo<uint64_t>(GenTL::BUFFER_INFO_PIXELFORMAT, data.BufferHandle);
-    uint64_t timestamp = getBufferInfo<uint64_t>(GenTL::BUFFER_INFO_TIMESTAMP, data.BufferHandle);
-    uint64_t frameId = getBufferInfo<uint64_t>(GenTL::BUFFER_INFO_FRAMEID, data.BufferHandle);
     genTL->DSQueueBuffer(DS, data.BufferHandle);
-    return frameInfo;
 }
 
 void Stream::stopAcquisition() {
@@ -139,24 +143,12 @@ void Stream::flush() {
     if (status != GenTL::GC_ERR_SUCCESS) {
         throw GenTLException(status, "Could not flush the stream queue");
     }
-    status = genTL->EventFlush(filledBufferEvent);
-    if (status != GenTL::GC_ERR_SUCCESS) {
-        throw GenTLException(status, "Could not flush event");
-    }
-    void *buffer;
-    void *privateData;
-    for (auto a: buffers) {
-        status = genTL->DSRevokeBuffer(DS, a, &buffer, &privateData);
-        if (status != GenTL::GC_ERR_SUCCESS) {
-            throw GenTLException(status, "Could not delete buffers");
-        }
-    }
 }
 
-GenTL::EVENT_NEW_BUFFER_DATA Stream::getData(int timeout) {
+GenTL::EVENT_NEW_BUFFER_DATA Stream::getData(GenTL::EVENT_HANDLE eventHandle, int timeout) {
     size_t bufferSize = sizeof(GenTL::EVENT_NEW_BUFFER_DATA);
     GenTL::EVENT_NEW_BUFFER_DATA data;
-    GenTL::GC_ERROR status = genTL->EventGetData(filledBufferEvent, &data, &bufferSize, timeout);
+    GenTL::GC_ERROR status = genTL->EventGetData(eventHandle, &data, &bufferSize, timeout);
     if (status == GenTL::GC_ERR_TIMEOUT) {
         throw GenICamWrapperException("Timeout while retrieving frame");
     } else if (status != GenTL::GC_ERR_SUCCESS) {

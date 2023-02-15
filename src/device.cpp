@@ -19,11 +19,11 @@ Device::Device(const std::string& deviceId, std::shared_ptr<const GenTLWrapper> 
 std::shared_ptr<GenApi::CNodeMapRef> Device::getCameraNodeMap(const int XMLIndex) {
     GenTL::GC_ERROR status;
     PORT_CAMERA = getPort();
+    cameraCPort = std::make_shared<CPort>(genTL, PORT_CAMERA);
     std::string cameraURL = getXMLPath(XMLIndex);
     std::shared_ptr<GenApi::CNodeMapRef> cameraNodeMap = std::make_shared<GenApi::CNodeMapRef>("CAMERA");
-    loadXMLFromURL(cameraURL.c_str(), nullptr, cameraNodeMap);
+    loadXMLFromURL(cameraURL.c_str(), cameraCPort.get(), cameraNodeMap);
     std::string cameraName = getCameraInfoString(GenTL::URL_INFO_URL);
-    cameraCPort = std::make_shared<CPort>(genTL, PORT_CAMERA);
     cameraNodeMap->_Connect(cameraCPort.get(), cameraName.c_str());
     return cameraNodeMap;
 }

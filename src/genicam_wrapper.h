@@ -5,5 +5,6 @@
 #include "device.h"
 #include "stream.h"
 #include "buffer.hpp"
+#include "event.hpp"
 #include "GenICamWrapperException.hpp"
 #include "GenTL/GenTL.h"
